@@ -162,6 +162,7 @@ F00 目前除启动类外还没有后端业务类，因此 JaCoCo 没有可计�
 | `docker compose up -d` 与全栈健康检查 | 通过；10 个服务运行，9 个声明 healthcheck 的容器均 healthy；5 个 Java readiness 为 UP，Web/Grafana/Jaeger 可访问 |
 | PostgreSQL/Flyway 检查 | 通过；pgvector 0.8.6，Flyway V1 `enable vector extension` 成功 |
 | Prometheus targets 检查 | 通过；API、MCP 和三个 Demo 服务共 5 个 target 均为 UP |
+| GitHub Actions quality（run `35248866275`） | 通过；Backend、Frontend、Compose 三个 job 均为 success |
 
 失败但已修复的记录：SpotBugs Maven 插件的错误版本号导致首次解析失败；TypeScript 7、ESLint 10、jsdom 30 与当前插件或 Node 版本不兼容；Vitest 首次误收集 Playwright 测试；PostgreSQL 18 使用旧卷挂载路径导致容器重启；Spring Boot 4 缺少 Flyway starter 导致迁移未运行；OTLP endpoint 重复追加 `/v1/traces` 导致 404；Prettier 扫描生成产物导致门禁受执行顺序影响；Playwright WebServer 曾被 3000 端口上的 Compose Web 掩盖，停服复核时暴露出 npm 参数解析问题，改用独立 4173 端口并禁用服务复用后通过；GitHub Actions 工作流最初位于项目子目录，合并后检查发现未被平台识别，已移动到仓库根目录。修复均通过正确依赖、配置或忽略边界完成，没有跳过门禁。
 

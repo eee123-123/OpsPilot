@@ -41,7 +41,7 @@
 - Prometheus 5/5 targets 为 `up`；PostgreSQL pgvector 为 `0.8.6`，Flyway V1 为成功；
 - 日志未发现 error-level 记录、OTLP 导出失败或 Grafana provisioning 警告/错误；
 - `docker compose down`：通过；最终无项目容器运行。
-- GitHub Actions：工作流根目录修复后重新推送，并检查远程运行结果。
+- GitHub Actions run `35248866275`：`completed/success`；Backend、Frontend、Compose 三个 job 均通过。
 
 后续：
 
