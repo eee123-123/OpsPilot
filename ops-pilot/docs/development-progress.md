@@ -27,6 +27,7 @@
 - 从最新 `origin/main` 更新本地 `main`，使用 `--no-ff` 合并，merge commit 为 `1a7b6b2`；
 - 在 `main` 重新执行后端、前端、E2E、Compose 镜像构建和完整环境 Smoke Test；
 - 合并后复验通过，将 F00 状态从 `待合并` 更新为 `已完成`；
+- 推送后检查 GitHub Actions API 发现工作流未触发；定位为 Git 仓库根目录在 `ops-pilot` 上一级，已将工作流移动到仓库根 `.github/workflows/quality.yml` 并修正三个 job 的工作目录；
 - 复验结束后执行 `docker compose down`，全部项目容器与网络均已移除，命名卷保留。
 
 合并后验证：
@@ -40,6 +41,7 @@
 - Prometheus 5/5 targets 为 `up`；PostgreSQL pgvector 为 `0.8.6`，Flyway V1 为成功；
 - 日志未发现 error-level 记录、OTLP 导出失败或 Grafana provisioning 警告/错误；
 - `docker compose down`：通过；最终无项目容器运行。
+- GitHub Actions：工作流根目录修复后重新推送，并检查远程运行结果。
 
 后续：
 

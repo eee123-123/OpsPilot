@@ -74,7 +74,7 @@ Compose 使用数据库健康状态控制 API 启动顺序，使用 API 健康�
 | `infra/prometheus/prometheus.yml` | 5 个 Java 应用抓取目标 |
 | `infra/grafana/provisioning` | Prometheus 数据源自动预置 |
 | `scripts/verify.ps1`、`scripts/verify.sh` | 本地统一质量命令 |
-| `.github/workflows/quality.yml` | 与本地门禁对应的后端、前端和 Compose CI |
+| 仓库根目录 `.github/workflows/quality.yml` | 与本地门禁对应的后端、前端和 Compose CI；工作目录显式指向 `ops-pilot` 子目录 |
 
 ## 6. 核心实现讲解
 
@@ -113,6 +113,7 @@ F00 目前除启动类外还没有后端业务类，因此 JaCoCo 没有可计�
 5. PostgreSQL 18 改用了版本化数据目录。Compose 初始挂载到旧的 `/var/lib/postgresql/data` 会被入口脚本拒绝，最终改为挂载 `/var/lib/postgresql` 并以空卷重新验证初始化。
 6. Playwright 官方 Chromium 下载在本机网络下长时间停滞，Microsoft 备用入口又返回 400。配置保留默认锁定浏览器，同时支持通过 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` 显式使用兼容的本机 Chrome；本次使用 Chrome 153 完成测试，CI 仍安装 Playwright Chromium。
 7. Playwright 最初复用 3000 端口的已有服务，Compose 运行时会掩盖本地 WebServer 参数错误。E2E 现使用独立的 `dev:e2e` 脚本和 4173 端口，并禁止复用已有服务，保证每次都验证当前工作区代码。
+8. Git 仓库根目录位于 `ops-pilot` 的上一级，工作流放在项目子目录时 GitHub 不会识别。合并后通过 Actions API 发现没有运行记录，随后将工作流移动到仓库根目录，并为三个 job 显式配置 `ops-pilot` 工作目录。
 
 ## 8. 技术亮点
 
@@ -162,7 +163,7 @@ F00 目前除启动类外还没有后端业务类，因此 JaCoCo 没有可计�
 | PostgreSQL/Flyway 检查 | 通过；pgvector 0.8.6，Flyway V1 `enable vector extension` 成功 |
 | Prometheus targets 检查 | 通过；API、MCP 和三个 Demo 服务共 5 个 target 均为 UP |
 
-失败但已修复的记录：SpotBugs Maven 插件的错误版本号导致首次解析失败；TypeScript 7、ESLint 10、jsdom 30 与当前插件或 Node 版本不兼容；Vitest 首次误收集 Playwright 测试；PostgreSQL 18 使用旧卷挂载路径导致容器重启；Spring Boot 4 缺少 Flyway starter 导致迁移未运行；OTLP endpoint 重复追加 `/v1/traces` 导致 404；Prettier 扫描生成产物导致门禁受执行顺序影响；Playwright WebServer 曾被 3000 端口上的 Compose Web 掩盖，停服复核时暴露出 npm 参数解析问题，改用独立 4173 端口并禁用服务复用后通过。修复均通过正确依赖、配置或忽略边界完成，没有跳过门禁。
+失败但已修复的记录：SpotBugs Maven 插件的错误版本号导致首次解析失败；TypeScript 7、ESLint 10、jsdom 30 与当前插件或 Node 版本不兼容；Vitest 首次误收集 Playwright 测试；PostgreSQL 18 使用旧卷挂载路径导致容器重启；Spring Boot 4 缺少 Flyway starter 导致迁移未运行；OTLP endpoint 重复追加 `/v1/traces` 导致 404；Prettier 扫描生成产物导致门禁受执行顺序影响；Playwright WebServer 曾被 3000 端口上的 Compose Web 掩盖，停服复核时暴露出 npm 参数解析问题，改用独立 4173 端口并禁用服务复用后通过；GitHub Actions 工作流最初位于项目子目录，合并后检查发现未被平台识别，已移动到仓库根目录。修复均通过正确依赖、配置或忽略边界完成，没有跳过门禁。
 
 ## 12. 调试方法
 
