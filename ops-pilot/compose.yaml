@@ -1,0 +1,210 @@
+name: ops-pilot
+
+x-java-service: &java-service
+  restart: unless-stopped
+  environment: &java-environment
+    OTEL_EXPORTER_ENABLED: "true"
+    OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+    TRACING_SAMPLING_PROBABILITY: "1.0"
+  depends_on:
+    jaeger:
+      condition: service_started
+  networks:
+    - ops-pilot
+
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.6-pg18-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ops_pilot}
+      POSTGRES_USER: ${POSTGRES_USER:-ops_pilot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local-only-change-me}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - ops-pilot
+
+  ops-pilot-api:
+    <<: *java-service
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+      args:
+        MODULE: apps/ops-pilot-api
+    environment:
+      <<: *java-environment
+      SERVER_PORT: "8080"
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-ops_pilot}
+      DB_USER: ${POSTGRES_USER:-ops_pilot}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-local-only-change-me}
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      jaeger:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8080/actuator/health/readiness"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  ops-pilot-web:
+    build:
+      context: web
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      ops-pilot-api:
+        condition: service_healthy
+    networks:
+      - ops-pilot
+
+  ops-pilot-mcp-observability:
+    <<: *java-service
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+      args:
+        MODULE: apps/ops-pilot-mcp-observability
+    environment:
+      <<: *java-environment
+      SERVER_PORT: "8090"
+    ports:
+      - "8090:8090"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8090/actuator/health/readiness"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  demo-order:
+    <<: *java-service
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+      args:
+        MODULE: demo-services/demo-order
+    environment:
+      <<: *java-environment
+      SERVER_PORT: "8081"
+    ports:
+      - "8081:8081"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8081/actuator/health/readiness"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  demo-inventory:
+    <<: *java-service
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+      args:
+        MODULE: demo-services/demo-inventory
+    environment:
+      <<: *java-environment
+      SERVER_PORT: "8082"
+    ports:
+      - "8082:8082"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8082/actuator/health/readiness"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  demo-payment:
+    <<: *java-service
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+      args:
+        MODULE: demo-services/demo-payment
+    environment:
+      <<: *java-environment
+      SERVER_PORT: "8083"
+    ports:
+      - "8083:8083"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8083/actuator/health/readiness"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  prometheus:
+    image: prom/prometheus:v3.13.1
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    healthcheck:
+      test: ["CMD", "/bin/promtool", "check", "ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - ops-pilot
+
+  grafana:
+    image: grafana/grafana:13.2.1
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-local-only-change-me}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./infra/grafana/provisioning/datasources/prometheus.yml:/etc/grafana/provisioning/datasources/prometheus.yml:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3001:3000"
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:3000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - ops-pilot
+
+  jaeger:
+    image: jaegertracing/jaeger:2.21.0
+    restart: unless-stopped
+    ports:
+      - "16686:16686"
+      - "4317:4317"
+      - "4318:4318"
+    networks:
+      - ops-pilot
+
+volumes:
+  postgres-data:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  ops-pilot:
+    driver: bridge

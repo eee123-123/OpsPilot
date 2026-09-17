@@ -126,11 +126,11 @@ F00～F17 每个一级功能都必须在规定测试通过后自动生成一份�
 
 ## F00 工程基础与本地环境
 
-> 实施状态：未开始  
-> 测试状态：未执行  
-> 开发分支：`feature/f00-engineering-foundation`（未创建）  
-> 学习文档：`docs/learning/F00-engineering-foundation.md`（未生成）  
-> 最后更新：2026-09-15
+> 实施状态：待合并
+> 测试状态：通过（后端全量验证、前端质量门禁、Compose 构建与全栈健康检查、Playwright E2E 均通过）
+> 开发分支：`feature/f00-engineering-foundation`
+> 学习文档：`docs/learning/F00-engineering-foundation.md`（已完成）
+> 最后更新：2026-09-18
 
 ### F00.1 仓库与模块骨架
 

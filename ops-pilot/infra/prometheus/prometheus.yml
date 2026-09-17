@@ -1,0 +1,19 @@
+global:
+  scrape_interval: 10s
+  evaluation_interval: 10s
+
+scrape_configs:
+  - job_name: ops-pilot-api
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["ops-pilot-api:8080"]
+
+  - job_name: ops-pilot-mcp-observability
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["ops-pilot-mcp-observability:8090"]
+
+  - job_name: demo-services
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["demo-order:8081", "demo-inventory:8082", "demo-payment:8083"]

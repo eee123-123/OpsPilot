@@ -1,0 +1,16 @@
+.git
+.github
+.idea
+.vscode
+**/target
+web/node_modules
+web/dist
+web/coverage
+web/playwright-report
+web/test-results
+**/.npm-cache
+**/.tools
+.env
+backups
+data
+*.log
