@@ -126,9 +126,9 @@ F00～F17 每个一级功能都必须在规定测试通过后自动生成一份�
 
 ## F00 工程基础与本地环境
 
-> 实施状态：待合并
-> 测试状态：通过（后端全量验证、前端质量门禁、Compose 构建与全栈健康检查、Playwright E2E 均通过）
-> 开发分支：`feature/f00-engineering-foundation`
+> 实施状态：已完成
+> 测试状态：通过（分支内验收及 `main` 合并后构建、全栈 Smoke Test、Playwright E2E 均通过）
+> 开发分支：`feature/f00-engineering-foundation`（已通过 `1a7b6b2` 合并到 `main`）
 > 学习文档：`docs/learning/F00-engineering-foundation.md`（已完成）
 > 最后更新：2026-09-18
 

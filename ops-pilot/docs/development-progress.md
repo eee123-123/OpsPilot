@@ -8,16 +8,43 @@
 
 | 项目 | 当前值 |
 |---|---|
-| 当前功能 | F00 工程基础与本地环境 |
-| 实施状态 | 待合并 |
-| 测试状态 | 通过；后端全量验证、前端质量门禁、Compose 构建与全栈健康检查、Playwright E2E 均已通过 |
-| 当前分支 | `feature/f00-engineering-foundation`，基于 `main` 提交 `2c54390` 创建 |
-| 合并状态 | 待合并；用户已明确授权本次由 Agent 暂存、提交、推送并合并 |
-| 学习文档 | `docs/learning/F00-engineering-foundation.md`，已完成并校验 |
+| 当前功能 | F01 登录、用户与 RBAC |
+| 实施状态 | 未开始 |
+| 测试状态 | 未执行 |
+| 当前分支 | `main` |
+| 合并状态 | F00 已合并；功能提交 `f32d9af`，merge commit `1a7b6b2` |
+| 学习文档 | `docs/learning/F01-identity-rbac.md`，未生成 |
 | 当前阻塞 | 无 |
-| 下一步 | 提交并推送功能分支，以 `--no-ff` 合并到 `main`；在 `main` 完成构建和核心 Smoke Test 后将 F00 标记为已完成 |
+| 下一步 | 从最新 `main` 创建 `feature/f01-identity-rbac`，更新 F01 状态后开始登录、用户与 RBAC 开发 |
 
 ## 2. 最近一次会话交接
+
+### 2026-09-18：F00 合并后验证通过，状态已完成
+
+本次完成：
+
+- 提交并推送 `feature/f00-engineering-foundation`，功能提交为 `f32d9af`；
+- 从最新 `origin/main` 更新本地 `main`，使用 `--no-ff` 合并，merge commit 为 `1a7b6b2`；
+- 在 `main` 重新执行后端、前端、E2E、Compose 镜像构建和完整环境 Smoke Test；
+- 合并后复验通过，将 F00 状态从 `待合并` 更新为 `已完成`；
+- 复验结束后执行 `docker compose down`，全部项目容器与网络均已移除，命名卷保留。
+
+合并后验证：
+
+- `.\mvnw.cmd -B -ntp verify`：通过；Reactor 6/6 SUCCESS，6 个测试通过，Checkstyle、SpotBugs、JaCoCo 门禁通过；
+- `npm run lint`、`npm run format:check`、`npm run test`、`npm run build`：通过；前端 3 个测试通过，覆盖率保持 Statements 92%、Branches 81.25%、Functions 100%、Lines 91.3%；
+- Playwright 与 Maven、Docker 镜像并行构建时曾因本机资源争用超时；构建结束后隔离重跑 `npm run test:e2e`，Chromium 项目 1/1 通过；
+- `docker compose --progress plain build`：通过，6 个应用镜像构建成功；
+- `docker compose up -d --wait --wait-timeout 240`：通过；10 个服务启动，9 个声明自定义 healthcheck 的容器均 healthy；
+- 5 个 Java readiness endpoint 均为 `UP`，Web 200、Grafana health `ok`、Jaeger UI 200；
+- Prometheus 5/5 targets 为 `up`；PostgreSQL pgvector 为 `0.8.6`，Flyway V1 为成功；
+- 日志未发现 error-level 记录、OTLP 导出失败或 Grafana provisioning 警告/错误；
+- `docker compose down`：通过；最终无项目容器运行。
+
+后续：
+
+1. 从最新 `main` 创建 `feature/f01-identity-rbac`；
+2. 按 F01 实现计划更新状态、开发、验证和生成学习文档。
 
 ### 2026-09-18：F00 合并前文档复核与停服
 
