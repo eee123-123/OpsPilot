@@ -1,0 +1,33 @@
+# Java and Maven
+target/
+*.class
+.mvn/wrapper/maven-wrapper.jar
+
+# Frontend
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+.npm-cache/
+
+# IDE and operating system
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Runtime and local configuration
+.env
+.env.local
+.tools/
+*.log
+logs/
+backups/
+data/
+
+# Test and generated artifacts
+.jacoco/
+*.exec
+dependency-reduced-pom.xml
