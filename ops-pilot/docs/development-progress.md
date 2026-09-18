@@ -12,10 +12,10 @@
 | 实施状态 | 待合并 |
 | 测试状态 | 通过 |
 | 当前分支 | `feature/f01-identity-rbac` |
-| 合并状态 | F00 已合并；F01 从最新 `main`（`8ae7513`）创建，尚未提交、推送或合并 |
+| 合并状态 | F00 已合并；F01 已提交 `2654258` 并推送到 `origin/feature/f01-identity-rbac`，尚未合并到 `main` |
 | 学习文档 | `docs/learning/F01-identity-rbac.md`，已完成 |
 | 当前阻塞 | 无 |
-| 下一步 | 用户 Code Review 后提交并合并 F01 到 `main`，再执行合并后验证 |
+| 下一步 | 用户 Code Review 后以 `--no-ff` 合并 F01 到 `main`，再执行合并后验证 |
 
 ## 2. 最近一次会话交接
 
@@ -53,24 +53,33 @@
 
 未完成与已知问题：
 
-- 无阻塞；F01 代码、测试证据和文档已就绪，等待用户 Code Review、提交、推送和合并；
-- 按 `AGENTS.md`，Agent 未执行任何 `git add`、`commit`、`push` 或 `merge`；
-- 仓库根目录存在未跟踪的 `.vscode/settings.json`（Java 空值分析模式），是否提交或加入忽略清单尚未决定。
+- 无阻塞；F01 已提交并推送，等待用户 Code Review 和合并；
+- 经用户当次任务明确授权，由 Agent 执行 `git add`、`git commit` 和 `git push`；未创建 Pull Request，未合并到 `main`，未对任何已推送分支执行 amend、rebase 或 force push；
+- 推送功能分支不会触发质量工作流：`.github/workflows/quality.yml` 仅在 `pull_request` 和推送到 `main` 时运行。若希望合并前由 CI 验证，需要创建 Pull Request；
+- 仓库根目录存在未跟踪的 `.vscode/settings.json`（Java 空值分析模式），是否提交或加入忽略清单尚未决定；本次提交使用 `git add ops-pilot` 限定路径，该文件未进入提交。
 
 状态变化：
 
 - 实施状态：`待文档` → `待合并`；
 - 测试状态：`通过`（保持）；
 - 当前分支：`feature/f01-identity-rbac`；
-- 合并状态：未提交、未推送、未合并；
+- 合并状态：已提交 `2654258`、已推送，未合并；
 - 学习文档：已完成。
+
+Git 记录：
+
+- 分支：`feature/f01-identity-rbac`
+- 最新提交：`2654258` `feat(f01): implement identity, user management and rbac`，48 个文件，+4755/−255
+- 远程分支：`origin/feature/f01-identity-rbac`，与本地 HEAD 一致
+- Pull Request：未创建
+- 合并结果：未合并；`origin/main` 仍为 `8ae7513`
+- 合并后验证：未执行
 
 下一步：
 
-1. 用户检查工作区 diff 并执行 Code Review；
-2. 用户提交并推送 `feature/f01-identity-rbac`，建议提交信息 `feat(f01): implement identity, user management and rbac`；
-3. 用户以 `--no-ff` 合并到 `main` 并推送；
-4. 下一会话在 `main` 执行合并后验证，通过后把 F01 标记为 `已完成` 并开始 F02。
+1. 用户执行 Code Review（可选：创建 Pull Request，让 Backend、Frontend、Compose 三个 job 在合并前验证）；
+2. 用户以 `--no-ff` 合并到 `main` 并推送；
+3. 下一会话在 `main` 执行合并后验证，通过后把 F01 标记为 `已完成` 并开始 F02。
 
 ### 2026-09-18：F01 主体实现完成，质量门禁修复中
 
