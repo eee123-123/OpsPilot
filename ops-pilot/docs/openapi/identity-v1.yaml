@@ -1,0 +1,407 @@
+openapi: 3.1.0
+info:
+  title: OpsPilot Identity API
+  version: 1.0.0
+  description: F01 登录、用户管理与 RBAC 的 HTTP 契约。
+servers:
+  - url: http://localhost:8080
+tags:
+  - name: Authentication
+  - name: Users
+paths:
+  /api/v1/auth/login:
+    post:
+      tags: [Authentication]
+      summary: 使用用户名和密码登录
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: 登录成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/auth/logout:
+    post:
+      tags: [Authentication]
+      summary: 退出并使当前用户的既有令牌失效
+      operationId: logout
+      responses:
+        '204':
+          description: 已退出
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/auth/me:
+    get:
+      tags: [Authentication]
+      summary: 获取当前用户
+      operationId: currentUser
+      responses:
+        '200':
+          description: 当前用户
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentUser'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/auth/change-password:
+    post:
+      tags: [Authentication]
+      summary: 修改本人密码并签发新令牌
+      operationId: changePassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '200':
+          description: 密码修改成功，旧令牌全部失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/users:
+    get:
+      tags: [Users]
+      summary: 分页查询用户
+      operationId: listUsers
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, default: 0, minimum: 0 }
+        - name: size
+          in: query
+          schema: { type: integer, default: 20, minimum: 1, maximum: 100 }
+        - name: query
+          in: query
+          schema: { type: string, default: '' }
+        - name: sort
+          in: query
+          description: username、displayName、createdAt 或 enabled，加 asc/desc。
+          schema: { type: string, default: 'username,asc' }
+      responses:
+        '200':
+          description: 用户分页
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [Users]
+      summary: 创建用户
+      operationId: createUser
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '201':
+          description: 用户已创建
+          headers:
+            Location:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManagedUser'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /api/v1/users/{id}/status:
+    patch:
+      tags: [Users]
+      summary: 启用或禁用用户
+      operationId: changeUserStatus
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeStatusRequest'
+      responses:
+        '200':
+          description: 用户状态已更新
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManagedUser'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /api/v1/users/{id}/reset-password:
+    post:
+      tags: [Users]
+      summary: 重置用户临时密码
+      operationId: resetUserPassword
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '200':
+          description: 密码已重置，旧令牌失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManagedUser'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /api/v1/users/{id}/roles:
+    put:
+      tags: [Users]
+      summary: 替换用户角色集合
+      operationId: replaceUserRoles
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReplaceRolesRequest'
+      responses:
+        '200':
+          description: 角色已更新，旧令牌失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManagedUser'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    UserId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 128
+        pattern: '^[A-Za-z0-9._:-]+$'
+  responses:
+    BadRequest:
+      description: 参数、密码策略或业务约束不合法
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unauthorized:
+      description: 凭据或会话无效
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Forbidden:
+      description: 当前角色无权执行该操作，或首次登录尚未改密
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    NotFound:
+      description: 用户不存在
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Conflict:
+      description: 用户名、幂等键或管理员保护约束冲突
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+  schemas:
+    RoleName:
+      type: string
+      enum: [VIEWER, OPERATOR, APPROVER, ADMIN]
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required: [username, password]
+      properties:
+        username: { type: string, minLength: 1, maxLength: 64 }
+        password: { type: string, format: password, minLength: 1, maxLength: 128 }
+    ChangePasswordRequest:
+      type: object
+      additionalProperties: false
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword: { type: string, format: password, minLength: 1, maxLength: 128 }
+        newPassword:
+          type: string
+          format: password
+          minLength: 12
+          maxLength: 128
+          description: 必须同时包含大小写字母、数字和符号。
+    CurrentUser:
+      type: object
+      additionalProperties: false
+      required: [id, username, displayName, mustChangePassword, roles]
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string }
+        displayName: { type: string }
+        mustChangePassword: { type: boolean }
+        roles:
+          type: array
+          uniqueItems: true
+          minItems: 1
+          items: { $ref: '#/components/schemas/RoleName' }
+    LoginResponse:
+      type: object
+      additionalProperties: false
+      required: [accessToken, tokenType, expiresAt, user]
+      properties:
+        accessToken: { type: string }
+        tokenType: { type: string, const: Bearer }
+        expiresAt: { type: string, format: date-time }
+        user: { $ref: '#/components/schemas/CurrentUser' }
+    ManagedUser:
+      allOf:
+        - $ref: '#/components/schemas/CurrentUser'
+        - type: object
+          required: [enabled, createdAt, updatedAt]
+          properties:
+            enabled: { type: boolean }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
+    UserPage:
+      type: object
+      additionalProperties: false
+      required: [content, page, size, totalElements, totalPages]
+      properties:
+        content:
+          type: array
+          items: { $ref: '#/components/schemas/ManagedUser' }
+        page: { type: integer, minimum: 0 }
+        size: { type: integer, minimum: 1 }
+        totalElements: { type: integer, format: int64, minimum: 0 }
+        totalPages: { type: integer, minimum: 0 }
+    CreateUserRequest:
+      type: object
+      additionalProperties: false
+      required: [username, displayName, temporaryPassword, roles]
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 64
+          pattern: '^[a-z0-9][a-z0-9._-]{2,63}$'
+        displayName: { type: string, minLength: 1, maxLength: 100 }
+        temporaryPassword:
+          type: string
+          format: password
+          minLength: 12
+          maxLength: 128
+        roles:
+          type: array
+          uniqueItems: true
+          minItems: 1
+          items: { $ref: '#/components/schemas/RoleName' }
+    ChangeStatusRequest:
+      type: object
+      additionalProperties: false
+      required: [enabled]
+      properties:
+        enabled: { type: boolean }
+    ResetPasswordRequest:
+      type: object
+      additionalProperties: false
+      required: [temporaryPassword]
+      properties:
+        temporaryPassword:
+          type: string
+          format: password
+          minLength: 12
+          maxLength: 128
+    ReplaceRolesRequest:
+      type: object
+      additionalProperties: false
+      required: [roles]
+      properties:
+        roles:
+          type: array
+          uniqueItems: true
+          minItems: 1
+          items: { $ref: '#/components/schemas/RoleName' }
+    Problem:
+      type: object
+      required: [type, title, status, detail, instance, errorCode, requestId]
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string, format: uri-reference }
+        errorCode: { type: string }
+        requestId: { type: string, format: uuid }
+security:
+  - bearerAuth: []

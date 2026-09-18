@@ -1,6 +1,6 @@
 # OpsPilot
 
-OpsPilot 是一个面向微服务故障的智能诊断与应急处置平台。本仓库当前首先提供可复现的工程基础：Java 21 模块化后端、React + TypeScript 前端、PostgreSQL + pgvector，以及 Prometheus、Grafana、Jaeger 本地观测栈。
+OpsPilot 是一个面向微服务故障的智能诊断与应急处置平台。本仓库提供可复现的 Java 21 模块化后端、React + TypeScript 前端、PostgreSQL + pgvector、Prometheus、Grafana 和 Jaeger 本地栈，并已包含登录、用户管理与四角色 RBAC。
 
 ## 环境要求
 
@@ -37,6 +37,10 @@ docker compose ps
 | Prometheus | <http://localhost:9090> | 指标查询 |
 | Jaeger | <http://localhost:16686> | Trace 查询 |
 | PostgreSQL | `localhost:5432` | 业务数据与 pgvector |
+
+首次启动会按环境变量创建本地管理员。默认用户名为 `admin`、临时密码为 `Admin-local-2026!`；登录后必须立即改密。该密码只用于本地演示，部署到共享或生产环境前必须修改 `JWT_SECRET` 与初始管理员密码。
+
+F01 HTTP 契约见 [Identity OpenAPI](docs/openapi/identity-v1.yaml)。用户管理接口仅允许 `ADMIN`；`VIEWER`、`OPERATOR` 和 `APPROVER` 访问时由后端返回 403，不能依赖前端隐藏按钮替代鉴权。
 
 停止服务但保留数据：
 
@@ -102,6 +106,12 @@ Linux/macOS 使用：
 | `DB_URL` | `jdbc:postgresql://localhost:5432/ops_pilot` | API 数据库连接 |
 | `DB_USER` | `ops_pilot` | API 数据库用户 |
 | `DB_PASSWORD` | `local-only-change-me` | API 数据库密码 |
+| `JWT_SECRET` | 本地演示占位值 | HS256 JWT 密钥；共享或生产环境必须覆盖 |
+| `JWT_ISSUER` | `ops-pilot` | JWT issuer |
+| `JWT_ACCESS_TOKEN_TTL` | `PT15M` | 访问令牌有效期，使用 ISO-8601 Duration |
+| `INITIAL_ADMIN_USERNAME` | `admin` | 首次启动管理员用户名 |
+| `INITIAL_ADMIN_DISPLAY_NAME` | `Local Administrator` | 首次启动管理员显示名称 |
+| `INITIAL_ADMIN_PASSWORD` | `Admin-local-2026!` | 首次启动管理员临时密码；必须改密 |
 | `OTEL_EXPORTER_ENABLED` | `false` | 本地 Maven 启动时是否导出 Trace |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://localhost:4318` | OTLP HTTP Collector 基础地址（应用追加 `/v1/traces`） |
 | `TRACING_SAMPLING_PROBABILITY` | `1.0` | 本地 Trace 采样率 |
@@ -134,6 +144,7 @@ docs/                              设计、计划、进度和学习文档
 - TypeScript strict、ESLint、Prettier；
 - Vitest 覆盖率门禁；
 - Playwright Chromium 冒烟测试；
+- Testcontainers + PostgreSQL 的 Flyway、身份生命周期与四角色权限矩阵集成测试；
 - `docker compose config` 配置校验；
 - GitHub Actions 使用与本地相同的命令。
 

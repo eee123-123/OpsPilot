@@ -9,15 +9,124 @@
 | 项目 | 当前值 |
 |---|---|
 | 当前功能 | F01 登录、用户与 RBAC |
-| 实施状态 | 未开始 |
-| 测试状态 | 未执行 |
-| 当前分支 | `main` |
-| 合并状态 | F00 已合并；功能提交 `f32d9af`，merge commit `1a7b6b2` |
-| 学习文档 | `docs/learning/F01-identity-rbac.md`，未生成 |
+| 实施状态 | 待合并 |
+| 测试状态 | 通过 |
+| 当前分支 | `feature/f01-identity-rbac` |
+| 合并状态 | F00 已合并；F01 从最新 `main`（`8ae7513`）创建，尚未提交、推送或合并 |
+| 学习文档 | `docs/learning/F01-identity-rbac.md`，已完成 |
 | 当前阻塞 | 无 |
-| 下一步 | 从最新 `main` 创建 `feature/f01-identity-rbac`，更新 F01 状态后开始登录、用户与 RBAC 开发 |
+| 下一步 | 用户 Code Review 后提交并合并 F01 到 `main`，再执行合并后验证 |
 
 ## 2. 最近一次会话交接
+
+### 2026-09-18：F01 交付复核完成，进入待合并
+
+本次背景：
+
+- 同一会话的前半段已完成 F01 实现、质量门禁修复、真实后端 Playwright 和完整 Compose 栈验收，并生成 F01 As-Built 学习文档；
+- 该会话在最后的交付复核阶段因模型额度耗尽中断，本次接续只做复核与状态收尾，未新增或修改产品代码。
+
+本次实际执行（本次会话真实命令）：
+
+- `npm run lint`：通过；
+- `npm run format:check`：通过，全部文件符合 Prettier；
+- `npm run test`：通过，12/12；Statements 89.42%、Branches 80.34%、Functions 90.47%、Lines 89.18%；
+- `npm run build`：通过；
+- `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH='C:\Program Files\Google\Chrome\Application\chrome.exe'; npm run test:e2e`：通过，2 passed、1 skipped，跳过的为未设置 `E2E_LIVE` 时正常跳过的 `identity-live.spec.ts`；
+- `.\mvnw.cmd -B -ntp -pl apps/ops-pilot-api verify -DskipTests`（Temurin JDK 21.0.12.1）：BUILD SUCCESS；Checkstyle `0 violations`、SpotBugs `BugInstance size is 0`、`Error size is 0`，作用于当前源码，可复验上一会话遗留的「SpotBugs 28 项已修复、待全量复验」悬项。该命令显式跳过测试，**不能**作为集成测试或覆盖率通过的证据：本次 JaCoCo 检查读取的是上一轮含测试运行遗留的 `target/jacoco.exec`，本次跳测运行没有产生新的覆盖数据；
+- `git diff --check`：通过，无空白错误；
+- 学习文档引用复核：`docs/learning/F01-identity-rbac.md` 中引用的迁移脚本、安全过滤器、用户管理服务、前端入口、OpenAPI 契约等 7 个路径全部存在；
+- 敏感信息扫描：新代码与文档中只有 `.env.example` 和测试夹具内的本地占位口令，未发现真实凭据。
+
+本次未重复执行（保留上一会话结论，不新增执行记录）：
+
+- `IdentityApiIntegrationTest` 的 Testcontainers 集成测试；
+- 真实后端 Playwright（`E2E_LIVE=true`）；
+- Compose 10 服务全栈验收与容器内 403 验证。
+- 原因：Docker 引擎当前未运行，且上一会话已完成这些验收并清理了隔离环境。为避免把未执行的事情记为通过，本节不重复声明其结论，其证据以上一会话记录和 `docs/learning/F01-identity-rbac.md` 第 12 节为准。
+
+本次修复：
+
+- `docs/implementation-plan.md`：F01 状态块丢失行尾双空格导致 Markdown 硬换行失效，已恢复为与其他功能块一致；
+- `docs/implementation-plan.md`、`docs/development-progress.md`：实施状态由 `待文档` 推进到 `待合并`，学习文档标记为已完成；
+- 上一会话的中途状态、失败和修复事实保留在本文件下方，未删除。
+
+未完成与已知问题：
+
+- 无阻塞；F01 代码、测试证据和文档已就绪，等待用户 Code Review、提交、推送和合并；
+- 按 `AGENTS.md`，Agent 未执行任何 `git add`、`commit`、`push` 或 `merge`；
+- 仓库根目录存在未跟踪的 `.vscode/settings.json`（Java 空值分析模式），是否提交或加入忽略清单尚未决定。
+
+状态变化：
+
+- 实施状态：`待文档` → `待合并`；
+- 测试状态：`通过`（保持）；
+- 当前分支：`feature/f01-identity-rbac`；
+- 合并状态：未提交、未推送、未合并；
+- 学习文档：已完成。
+
+下一步：
+
+1. 用户检查工作区 diff 并执行 Code Review；
+2. 用户提交并推送 `feature/f01-identity-rbac`，建议提交信息 `feat(f01): implement identity, user management and rbac`；
+3. 用户以 `--no-ff` 合并到 `main` 并推送；
+4. 下一会话在 `main` 执行合并后验证，通过后把 F01 标记为 `已完成` 并开始 F02。
+
+### 2026-09-18：F01 主体实现完成，质量门禁修复中
+
+本次完成：
+
+- 增加用户、角色、用户角色、幂等记录和审计日志的 Flyway V2 迁移，并保留 F00 的 V1 不变；
+- 实现 BCrypt、JWT 登录/退出、首次改密、禁用与令牌版本失效、四角色 RBAC、用户管理、幂等写入和审计；
+- 实现登录、首次改密、会话恢复、路由守卫、权限菜单和用户管理前端，并接入真实 `/api/v1` 接口；
+- 增加 PostgreSQL Testcontainers 身份生命周期与四角色权限矩阵集成测试，以及 11 个前端组件测试。
+
+测试记录：
+
+- 首次 PostgreSQL 集成测试失败：JDBC 驱动无法推断裸 `Instant` 参数类型；数据库边界改用 UTC `OffsetDateTime` 后复验通过；
+- `IdentityApiIntegrationTest`：通过；从空 pgvector PostgreSQL 16 实例执行 Flyway V1、V2，并通过完整身份生命周期测试；
+- `npm run test`：通过，11/11；Statements 89.3%、Branches 84.4%、Functions 88.75%、Lines 89.47%；
+- `npm run build`：通过；
+- `npm run lint`：通过；后续修改测试后 `npm run format:check` 发现 `src/App.test.tsx` 待重新格式化；
+- `..\mvnw.cmd -B -ntp verify`：API 的 5 个测试均通过，但 SpotBugs 报告 28 项问题，当前已完成针对性代码修复，尚待全量复验。
+
+状态变化：
+
+- 实施状态：`开发中` → `待修复`；
+- 测试状态：`未执行` → `部分通过`；
+- 当前分支：`feature/f01-identity-rbac`；
+- 合并状态：未提交、未推送、未合并；
+- 学习文档：未生成。
+
+下一步：
+
+1. 重跑 Maven 全量门禁，处理剩余静态分析或覆盖率问题；
+2. 格式化并复验前端 lint、格式、单测和构建；
+3. 完成真实后端 Playwright、Compose Smoke Test 和 OpenAPI；
+4. 生成 F01 学习文档并将状态推进到 `待合并`。
+
+### 2026-09-18：启动 F01 登录、用户与 RBAC 开发
+
+本次目标：
+
+- 完成 FR-IAM-001～FR-IAM-006 及 F01.1～F01.4；
+- 在功能分支内完成后端、前端、数据库、审计、测试和学习文档，最终停在 `待合并`。
+
+当前事实：
+
+- 已完整复核 `AGENTS.md`、系统设计、实现计划、开发进度和 F00 学习文档；
+- F00 已由 merge commit `1a7b6b2` 合入 `main`，合并后验证和 GitHub Actions 均通过；
+- 本地 `main` 与 `origin/main` 同为 `8ae7513`，开始时工作区干净；
+- 已从该提交创建并切换到 `feature/f01-identity-rbac`；
+- F01 实施状态已更新为 `开发中`，测试尚未执行。
+
+下一步：
+
+1. 盘点 F00 工程结构、依赖和质量门禁；
+2. 增加 F01 Flyway 迁移及后端身份、用户管理和审计能力；
+3. 增加登录、首次改密、用户管理、路由和按钮权限前端；
+4. 执行权限矩阵、异常、安全、前端组件和 Playwright 验收；
+5. 生成 F01 学习文档并准备人工 Code Review。
 
 ### 2026-09-18：F00 合并后验证通过，状态已完成
 

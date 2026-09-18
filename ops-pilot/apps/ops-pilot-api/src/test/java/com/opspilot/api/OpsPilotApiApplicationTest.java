@@ -10,7 +10,8 @@ import org.springframework.context.ApplicationContext;
 @SpringBootTest(properties = {
     "spring.datasource.url=jdbc:h2:mem:ops-pilot",
     "spring.datasource.driver-class-name=org.h2.Driver",
-    "spring.flyway.enabled=false"
+    "spring.flyway.enabled=false",
+    "opspilot.identity.bootstrap-enabled=false"
 })
 class OpsPilotApiApplicationTest {
 

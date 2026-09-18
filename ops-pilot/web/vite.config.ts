@@ -8,6 +8,7 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/actuator': 'http://localhost:8080',
+      '/api': 'http://localhost:8080',
     },
   },
   preview: {
