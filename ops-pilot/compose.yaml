@@ -45,6 +45,12 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-ops_pilot}
       DB_USER: ${POSTGRES_USER:-ops_pilot}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-local-only-change-me}
+      JWT_SECRET: ${JWT_SECRET:-local-demo-jwt-secret-change-before-production-2026}
+      JWT_ISSUER: ${JWT_ISSUER:-ops-pilot}
+      JWT_ACCESS_TOKEN_TTL: ${JWT_ACCESS_TOKEN_TTL:-PT15M}
+      INITIAL_ADMIN_USERNAME: ${INITIAL_ADMIN_USERNAME:-admin}
+      INITIAL_ADMIN_DISPLAY_NAME: ${INITIAL_ADMIN_DISPLAY_NAME:-Local Administrator}
+      INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:-Admin-local-2026!}
     ports:
       - "8080:8080"
     depends_on:

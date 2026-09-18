@@ -1,6 +1,8 @@
 spring:
   application:
     name: ops-pilot-api
+  jackson:
+    default-property-inclusion: non_null
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/ops_pilot}
     username: ${DB_USER:ops_pilot}
@@ -50,3 +52,13 @@ info:
   app:
     name: ${spring.application.name}
     description: OpsPilot modular monolith API
+
+opspilot:
+  identity:
+    jwt-secret: ${JWT_SECRET:local-demo-jwt-secret-change-before-production-2026}
+    jwt-issuer: ${JWT_ISSUER:ops-pilot}
+    access-token-ttl: ${JWT_ACCESS_TOKEN_TTL:PT15M}
+    bootstrap-admin:
+      username: ${INITIAL_ADMIN_USERNAME:admin}
+      display-name: ${INITIAL_ADMIN_DISPLAY_NAME:Local Administrator}
+      password: ${INITIAL_ADMIN_PASSWORD:Admin-local-2026!}

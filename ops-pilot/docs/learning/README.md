@@ -16,7 +16,7 @@
 | 功能 | 模块 | 学习文档 | 状态 |
 |---|---|---|---|
 | F00 | 工程基础与本地环境 | `F00-engineering-foundation.md` | 已完成 |
-| F01 | 登录、用户与 RBAC | `F01-identity-rbac.md` | 未生成 |
+| F01 | 登录、用户与 RBAC | `F01-identity-rbac.md` | 已完成 |
 | F02 | 前端框架与统一体验 | `F02-frontend-foundation.md` | 未生成 |
 | F03 | 告警与事故管理 | `F03-incident-management.md` | 未生成 |
 | F04 | 示例微服务与故障注入 | `F04-demo-services-fault-injection.md` | 未生成 |
