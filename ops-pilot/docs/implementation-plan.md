@@ -167,9 +167,10 @@ F00～F17 每个一级功能都必须在规定测试通过后自动生成一份�
 
 ## F01 登录、用户与 RBAC
 
-> 实施状态：待合并  
+> 实施状态：已完成  
 > 测试状态：通过（后端、前端、模拟与真实后端 Playwright、OpenAPI 解析和完整 Compose 栈验收均通过）  
 > 开发分支：`feature/f01-identity-rbac`  
+> 合并提交：`4a532c6`  
 > 学习文档：`docs/learning/F01-identity-rbac.md`（已完成）  
 > 最后更新：2026-09-18
 

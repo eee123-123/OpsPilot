@@ -8,16 +8,57 @@
 
 | 项目 | 当前值 |
 |---|---|
-| 当前功能 | F01 登录、用户与 RBAC |
-| 实施状态 | 待合并 |
+| 当前功能 | F01 登录、用户与 RBAC（已完成，待下一会话切到 F02） |
+| 实施状态 | 已完成 |
 | 测试状态 | 通过 |
-| 当前分支 | `feature/f01-identity-rbac` |
-| 合并状态 | F00 已合并；F01 已提交 `2654258` 并推送到 `origin/feature/f01-identity-rbac`，尚未合并到 `main` |
+| 当前分支 | `main` |
+| 合并状态 | F00、F01 均已合并到 `main`；F01 合并提交 `4a532c6` 已推送 |
 | 学习文档 | `docs/learning/F01-identity-rbac.md`，已完成 |
 | 当前阻塞 | 无 |
-| 下一步 | 用户 Code Review 后以 `--no-ff` 合并 F01 到 `main`，再执行合并后验证 |
+| 下一步 | 下一会话先启动全部环境验证 F01 功能完备性，再开始 F02 前端框架与统一体验 |
 
 ## 2. 最近一次会话交接
+
+### 2026-09-18：F01 合并到 main，功能完成
+
+本次完成：
+
+- 经用户当次任务明确授权，由 Agent 执行本次合并和推送；
+- 将 `feature/f01-identity-rbac` 以 `--no-ff` 合并到 `main`，merge commit 为 `4a532c6`，并推送 `8ae7513..4a532c6` 到 `origin/main`；
+- 远程 `feature/f01-identity-rbac` 保留，未删除；
+- 同步 F01 状态：`docs/implementation-plan.md` 实施状态改为 `已完成` 并记录合并提交，`docs/development-progress.md` 状态表切换到 `main` 与 F02。
+
+合并后验证：
+
+- GitHub Actions `quality` run `35349477626` 在 `4a532c6` 上 `completed/success`：backend 99 秒、frontend 56 秒、compose 9 秒三个 job 全部通过；
+- 其中 backend job 执行 `./mvnw verify`，包含 Testcontainers 真实 PostgreSQL 集成测试；frontend job 执行 lint、格式检查、单测、构建和 Playwright；compose job 执行 `docker compose config --quiet`；
+- 本地 10 服务全栈冒烟与真实后端 Playwright 在合并后**未**执行：本机 Docker Engine 未运行。分支内已通过同类验收，证据以 `docs/learning/F01-identity-rbac.md` 第 12 节为准。
+
+未完成与已知问题：
+
+- F01 功能的完整全栈实测安排为下一会话的第一项任务（见 `docs/next.md`）；若发现缺陷，必须回到功能分支修复，不得直接改 `main`；
+- 仓库根目录 `.vscode/settings.json` 仍未跟踪，处理方式尚未决定。
+
+状态变化：
+
+- 实施状态：`待合并` → `已完成`；
+- 测试状态：`通过`（保持）；
+- 当前分支：`main`；
+- 合并状态：已合并到 `main`，merge commit `4a532c6`，已推送；
+- 学习文档：已完成。
+
+Git 记录：
+
+- 分支：`feature/f01-identity-rbac` → `main`
+- 最新提交：`4a532c6` `merge: complete F01 identity and RBAC`
+- Pull Request：未创建
+- 合并结果：已合并到 `main` 并推送
+- 合并后验证：CI run `35349477626` 通过（backend、frontend、compose 三个 job）
+
+下一步：
+
+1. 下一会话先启动全部环境验证 F01 功能完备性；
+2. 通过后把当前功能切换到 F02 前端框架与统一体验，从最新 `main` 创建 `feature/f02-frontend-foundation`。
 
 ### 2026-09-18：F01 交付复核完成，进入待合并
 
