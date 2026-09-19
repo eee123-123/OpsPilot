@@ -1,6 +1,6 @@
 # OpsPilot
 
-OpsPilot 是一个面向微服务故障的智能诊断与应急处置平台。本仓库提供可复现的 Java 21 模块化后端、React + TypeScript 前端、PostgreSQL + pgvector、Prometheus、Grafana 和 Jaeger 本地栈，并已包含登录、用户管理与四角色 RBAC。
+OpsPilot 是一个面向微服务故障的智能诊断与应急处置平台。本仓库提供可复现的 Java 21 模块化后端、React + TypeScript 前端、PostgreSQL + pgvector、Prometheus、Grafana 和 Jaeger 本地栈，并已包含登录、用户管理、四角色 RBAC，以及基于 React Router、Ant Design 与 TanStack Query 的统一前端框架。
 
 ## 环境要求
 

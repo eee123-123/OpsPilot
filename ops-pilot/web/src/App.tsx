@@ -1,99 +1,239 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import { ApiError, CurrentUser, identityApi, ManagedUser, RoleName } from './api';
+import {
+  ApiOutlined,
+  DashboardOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
+  SafetyCertificateOutlined,
+  TeamOutlined,
+  UserOutlined,
+} from '@ant-design/icons';
+import {
+  Alert,
+  App as AntApp,
+  Avatar,
+  Breadcrumb,
+  Button,
+  Card,
+  Checkbox,
+  ConfigProvider,
+  Dropdown,
+  Form,
+  Input,
+  Layout,
+  Menu,
+  Modal,
+  Select,
+  Space,
+  Statistic,
+  Typography,
+  theme,
+} from 'antd';
+import type { ColumnsType } from 'antd/es/table';
+import {
+  keepPreviousData,
+  QueryClient,
+  QueryClientProvider,
+  useMutation,
+  useQuery,
+} from '@tanstack/react-query';
+import {
+  Component,
+  type ErrorInfo,
+  type FormEvent,
+  type ReactNode,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
+import {
+  BrowserRouter,
+  Navigate,
+  Outlet,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+  useSearchParams,
+} from 'react-router-dom';
+import {
+  ApiError,
+  configureApiSession,
+  type CurrentUser,
+  identityApi,
+  type LoginResponse,
+  type ManagedUser,
+  type RoleName,
+} from './api';
+import {
+  Confidence,
+  ContentViewer,
+  DangerousActionDialog,
+  PageLoading,
+  RequestError,
+  RiskTag,
+  RouteStatus,
+  ServerTable,
+  StatusTag,
+} from './components/foundation';
 
-type Session = { token: string; user: CurrentUser };
-type Notice = { kind: 'error' | 'success'; message: string; requestId?: string };
+const { Content, Header, Sider } = Layout;
+const { Paragraph, Text, Title } = Typography;
 const sessionKey = 'ops-pilot.access-token';
 const roles: RoleName[] = ['VIEWER', 'OPERATOR', 'APPROVER', 'ADMIN'];
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 15_000,
+      retry: (count, error) => !(error instanceof ApiError && error.status < 500) && count < 1,
+    },
+    mutations: { retry: false },
+  },
+});
 
-function currentPath() {
-  return window.location.pathname;
+type Session = { token: string; user: CurrentUser };
+
+function saveToken(token: string) {
+  sessionStorage.setItem(sessionKey, token);
 }
 
-function navigate(path: string) {
-  window.history.pushState({}, '', path);
-  window.dispatchEvent(new PopStateEvent('popstate'));
-}
-
-function errorNotice(error: unknown): Notice {
-  if (error instanceof ApiError) {
-    return { kind: 'error', message: error.message, requestId: error.requestId };
-  }
-  return { kind: 'error', message: error instanceof Error ? error.message : '未知错误' };
+function clearToken() {
+  sessionStorage.removeItem(sessionKey);
+  queryClient.clear();
 }
 
 export function App() {
+  return (
+    <ConfigProvider
+      button={{ autoInsertSpace: false }}
+      theme={{
+        algorithm: theme.darkAlgorithm,
+        token: {
+          colorPrimary: '#48cae4',
+          colorBgBase: '#07111f',
+          colorBgContainer: '#0d1d2e',
+          borderRadius: 10,
+          fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif',
+        },
+      }}
+    >
+      <AntApp>
+        <QueryClientProvider client={queryClient}>
+          <BrowserRouter>
+            <GlobalErrorBoundary>
+              <SessionRouter />
+            </GlobalErrorBoundary>
+          </BrowserRouter>
+        </QueryClientProvider>
+      </AntApp>
+    </ConfigProvider>
+  );
+}
+
+function SessionRouter() {
+  const navigate = useNavigate();
   const [session, setSession] = useState<Session | null>(null);
   const [restoring, setRestoring] = useState(() => sessionStorage.getItem(sessionKey) !== null);
   const [expired, setExpired] = useState(false);
-  const [path, setPath] = useState(currentPath);
+
+  function expireSession() {
+    clearToken();
+    setSession(null);
+    setExpired(true);
+    navigate('/login', { replace: true });
+  }
+
+  configureApiSession({
+    token: () => sessionStorage.getItem(sessionKey),
+    onUnauthorized: expireSession,
+  });
 
   useEffect(() => {
-    const onNavigation = () => setPath(currentPath());
-    window.addEventListener('popstate', onNavigation);
-    return () => window.removeEventListener('popstate', onNavigation);
-  }, []);
-
-  useEffect(() => {
-    const token = sessionStorage.getItem(sessionKey);
-    if (!token) {
+    if (!sessionStorage.getItem(sessionKey)) {
       return;
     }
-    const controller = new AbortController();
+    let active = true;
     identityApi
-      .me(token)
+      .me()
       .then((user) => {
-        if (!controller.signal.aborted) {
-          setSession({ token, user });
+        if (active) {
+          setSession({ token: sessionStorage.getItem(sessionKey) ?? '', user });
         }
       })
       .catch(() => {
-        sessionStorage.removeItem(sessionKey);
-        if (!controller.signal.aborted) {
+        clearToken();
+        if (active) {
           setExpired(true);
         }
       })
       .finally(() => {
-        if (!controller.signal.aborted) {
+        if (active) {
           setRestoring(false);
         }
       });
-    return () => controller.abort();
+    return () => {
+      active = false;
+    };
   }, []);
 
-  const saveSession = useCallback((next: Session) => {
-    sessionStorage.setItem(sessionKey, next.token);
-    setSession(next);
+  function acceptSession(response: LoginResponse) {
+    saveToken(response.accessToken);
+    setSession({ token: response.accessToken, user: response.user });
     setExpired(false);
-  }, []);
-
-  const expireSession = useCallback(() => {
-    sessionStorage.removeItem(sessionKey);
-    setSession(null);
-    setExpired(true);
-    navigate('/login');
-  }, []);
+  }
 
   if (restoring) {
-    return <FullPageStatus title="正在恢复会话" detail="正在验证本地访问令牌。" />;
+    return <PageLoading rows={5} />;
   }
+
   if (!session) {
-    return <LoginPage expired={expired} onLogin={saveSession} />;
+    return (
+      <Routes>
+        <Route path="/login" element={<LoginPage expired={expired} onLogin={acceptSession} />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    );
   }
+
   if (session.user.mustChangePassword) {
-    return <ChangePasswordPage session={session} onChanged={saveSession} />;
+    return (
+      <Routes>
+        <Route path="/change-password" element={<ChangePasswordPage onChanged={acceptSession} />} />
+        <Route path="*" element={<Navigate to="/change-password" replace />} />
+      </Routes>
+    );
   }
+
   return (
-    <AuthenticatedApp
-      session={session}
-      path={path}
-      onExpired={expireSession}
-      onLogout={() => {
-        sessionStorage.removeItem(sessionKey);
-        setSession(null);
-        navigate('/login');
-      }}
-    />
+    <Routes>
+      <Route
+        element={
+          <ConsoleLayout
+            user={session.user}
+            onLogout={() => {
+              clearToken();
+              setSession(null);
+              navigate('/login', { replace: true });
+            }}
+          />
+        }
+      >
+        <Route index element={<Dashboard user={session.user} />} />
+        <Route
+          path="users"
+          element={
+            session.user.roles.includes('ADMIN') ? (
+              <UserManagementPage currentUser={session.user} />
+            ) : (
+              <ForbiddenPage />
+            )
+          }
+        />
+        <Route path="foundation" element={<FoundationPage user={session.user} />} />
+        <Route path="forbidden" element={<ForbiddenPage />} />
+        <Route path="error" element={<ServerErrorPage />} />
+        <Route path="*" element={<NotFoundPage />} />
+      </Route>
+    </Routes>
   );
 }
 
@@ -102,582 +242,636 @@ function LoginPage({
   onLogin,
 }: {
   expired: boolean;
-  onLogin: (session: Session) => void;
+  onLogin: (response: LoginResponse) => void;
 }) {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [notice, setNotice] = useState<Notice | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  async function submit(event: FormEvent) {
-    event.preventDefault();
-    setSubmitting(true);
-    setNotice(null);
-    try {
-      const response = await identityApi.login(username, password);
-      onLogin({ token: response.accessToken, user: response.user });
-      navigate(response.user.mustChangePassword ? '/change-password' : '/');
-    } catch (error) {
-      setNotice(errorNotice(error));
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
+  const navigate = useNavigate();
+  const [error, setError] = useState<unknown>();
+  const login = useMutation({
+    mutationFn: ({ username, password }: { username: string; password: string }) =>
+      identityApi.login(username, password),
+    onSuccess: (response) => {
+      onLogin(response);
+      navigate(response.user.mustChangePassword ? '/change-password' : '/', { replace: true });
+    },
+    onError: setError,
+  });
   return (
     <main className="auth-shell">
       <section className="brand-panel">
-        <p className="eyebrow">INTELLIGENT INCIDENT OPERATIONS</p>
-        <h1>OpsPilot</h1>
-        <p>可审计、可恢复、证据优先的智能故障诊断与应急处置平台。</p>
+        <Text className="eyebrow">INTELLIGENT INCIDENT OPERATIONS</Text>
+        <Title>OpsPilot</Title>
+        <Paragraph>可审计、可恢复、证据优先的智能故障诊断与应急处置平台。</Paragraph>
       </section>
-      <section className="auth-card" aria-labelledby="login-title">
-        <p className="section-kicker">SECURE ACCESS</p>
-        <h2 id="login-title">登录控制台</h2>
-        {expired && <NoticeBox notice={{ kind: 'error', message: '会话已过期，请重新登录。' }} />}
-        {notice && <NoticeBox notice={notice} />}
-        <form onSubmit={submit}>
-          <label htmlFor="username">用户名</label>
-          <input
-            id="username"
-            autoComplete="username"
-            required
-            maxLength={64}
-            value={username}
-            onChange={(event) => setUsername(event.target.value)}
-          />
-          <label htmlFor="password">密码</label>
-          <input
-            id="password"
-            type="password"
-            autoComplete="current-password"
-            required
-            maxLength={128}
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-          />
-          <button className="primary" type="submit" disabled={submitting}>
-            {submitting ? '登录中…' : '登录'}
-          </button>
-        </form>
-      </section>
+      <Card className="auth-card" aria-labelledby="login-title">
+        <Text className="section-kicker">SECURE ACCESS</Text>
+        <Title level={2} id="login-title">
+          登录控制台
+        </Title>
+        {expired && <Alert showIcon type="warning" title="会话已过期，请重新登录。" />}
+        {error !== undefined && <RequestError error={error} title="登录失败" />}
+        <Form
+          layout="vertical"
+          requiredMark={false}
+          onFinish={(values: { username: string; password: string }) => login.mutate(values)}
+        >
+          <Form.Item
+            label="用户名"
+            name="username"
+            rules={[{ required: true, message: '请输入用户名' }]}
+          >
+            <Input autoComplete="username" maxLength={64} />
+          </Form.Item>
+          <Form.Item
+            label="密码"
+            name="password"
+            rules={[{ required: true, message: '请输入密码' }]}
+          >
+            <Input.Password autoComplete="current-password" maxLength={128} />
+          </Form.Item>
+          <Button type="primary" htmlType="submit" block loading={login.isPending}>
+            登录
+          </Button>
+        </Form>
+      </Card>
     </main>
   );
 }
 
-function ChangePasswordPage({
-  session,
-  onChanged,
-}: {
-  session: Session;
-  onChanged: (next: Session) => void;
-}) {
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmation, setConfirmation] = useState('');
-  const [notice, setNotice] = useState<Notice | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  async function submit(event: FormEvent) {
-    event.preventDefault();
-    if (newPassword !== confirmation) {
-      setNotice({ kind: 'error', message: '两次输入的新密码不一致。' });
-      return;
-    }
-    setSubmitting(true);
-    setNotice(null);
-    try {
-      const response = await identityApi.changePassword(
-        session.token,
-        currentPassword,
-        newPassword,
-      );
-      onChanged({ token: response.accessToken, user: response.user });
-      navigate('/');
-    } catch (error) {
-      setNotice(errorNotice(error));
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
+function ChangePasswordPage({ onChanged }: { onChanged: (response: LoginResponse) => void }) {
+  const navigate = useNavigate();
+  const [error, setError] = useState<unknown>();
+  const changePassword = useMutation({
+    mutationFn: (values: { currentPassword: string; newPassword: string }) =>
+      identityApi.changePassword(values.currentPassword, values.newPassword),
+    onSuccess: (response) => {
+      onChanged(response);
+      navigate('/', { replace: true });
+    },
+    onError: setError,
+  });
   return (
-    <main className="auth-shell single">
-      <section className="auth-card" aria-labelledby="change-password-title">
-        <p className="section-kicker">FIRST LOGIN</p>
-        <h2 id="change-password-title">首次登录，请修改密码</h2>
-        <p className="muted">新密码需为 12–128 位，并包含大小写字母、数字和符号。</p>
-        {notice && <NoticeBox notice={notice} />}
-        <form onSubmit={submit}>
-          <label htmlFor="current-password">当前密码</label>
-          <input
-            id="current-password"
-            type="password"
-            required
-            value={currentPassword}
-            onChange={(event) => setCurrentPassword(event.target.value)}
-          />
-          <label htmlFor="new-password">新密码</label>
-          <input
-            id="new-password"
-            type="password"
-            required
-            minLength={12}
-            value={newPassword}
-            onChange={(event) => setNewPassword(event.target.value)}
-          />
-          <label htmlFor="confirm-password">确认新密码</label>
-          <input
-            id="confirm-password"
-            type="password"
-            required
-            value={confirmation}
-            onChange={(event) => setConfirmation(event.target.value)}
-          />
-          <button className="primary" type="submit" disabled={submitting}>
-            {submitting ? '保存中…' : '修改密码并继续'}
-          </button>
-        </form>
-      </section>
+    <main className="auth-shell auth-shell-single">
+      <Card className="auth-card" aria-labelledby="change-password-title">
+        <Text className="section-kicker">FIRST LOGIN</Text>
+        <Title level={2} id="change-password-title">
+          首次登录，请修改密码
+        </Title>
+        <Paragraph type="secondary">新密码需为 12–128 位，并包含大小写字母、数字和符号。</Paragraph>
+        {error !== undefined && <RequestError error={error} title="修改密码失败" />}
+        <Form
+          layout="vertical"
+          requiredMark={false}
+          onFinish={(values: {
+            currentPassword: string;
+            newPassword: string;
+            confirmation: string;
+          }) => changePassword.mutate(values)}
+        >
+          <Form.Item label="当前密码" name="currentPassword" rules={[{ required: true }]}>
+            <Input.Password autoComplete="current-password" />
+          </Form.Item>
+          <Form.Item
+            label="新密码"
+            name="newPassword"
+            rules={[{ required: true }, { min: 12, message: '至少输入 12 个字符' }]}
+          >
+            <Input.Password autoComplete="new-password" />
+          </Form.Item>
+          <Form.Item
+            label="确认新密码"
+            name="confirmation"
+            dependencies={['newPassword']}
+            rules={[
+              { required: true },
+              ({ getFieldValue }) => ({
+                validator(_, value) {
+                  return !value || getFieldValue('newPassword') === value
+                    ? Promise.resolve()
+                    : Promise.reject(new Error('两次输入的新密码不一致。'));
+                },
+              }),
+            ]}
+          >
+            <Input.Password autoComplete="new-password" />
+          </Form.Item>
+          <Button type="primary" htmlType="submit" block loading={changePassword.isPending}>
+            修改密码并继续
+          </Button>
+        </Form>
+      </Card>
     </main>
   );
 }
 
-function AuthenticatedApp({
-  session,
-  path,
-  onExpired,
-  onLogout,
-}: {
-  session: Session;
-  path: string;
-  onExpired: () => void;
-  onLogout: () => void;
-}) {
-  const isAdmin = session.user.roles.includes('ADMIN');
+function ConsoleLayout({ user, onLogout }: { user: CurrentUser; onLogout: () => void }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [collapsed, setCollapsed] = useState(false);
+  const menuItems = [
+    { key: '/', icon: <DashboardOutlined />, label: '系统概览' },
+    { key: '/foundation', icon: <ApiOutlined />, label: '体验基线' },
+    ...(user.roles.includes('ADMIN')
+      ? [{ key: '/users', icon: <TeamOutlined />, label: '用户管理' }]
+      : []),
+  ];
+  const breadcrumbNames: Record<string, string> = {
+    '/': '系统概览',
+    '/foundation': '体验基线',
+    '/users': '用户管理',
+    '/forbidden': '无权访问',
+    '/error': '服务异常',
+  };
+
   async function logout() {
     try {
-      await identityApi.logout(session.token);
+      await identityApi.logout();
     } catch {
-      // Local logout still removes the browser token when the server is unavailable.
+      // Browser state still has to be cleared when the API is unavailable.
     } finally {
       onLogout();
     }
   }
 
-  let content = <Dashboard user={session.user} />;
-  if (path === '/users') {
-    content = isAdmin ? (
-      <UserManagementPage session={session} onExpired={onExpired} />
-    ) : (
-      <FullPageStatus title="无权访问" detail="用户管理仅对 ADMIN 角色开放。" />
-    );
-  } else if (path !== '/' && path !== '/login') {
-    content = <FullPageStatus title="页面不存在" detail="请从左侧导航选择可用页面。" />;
-  }
-
   return (
-    <div className="app-frame">
-      <aside className="sidebar">
+    <Layout className="console-layout">
+      <Sider collapsible collapsed={collapsed} trigger={null} width={240} className="console-sider">
         <button className="brand-button" type="button" onClick={() => navigate('/')}>
-          OpsPilot
+          {collapsed ? 'OP' : 'OpsPilot'}
         </button>
-        <nav aria-label="主导航">
-          <button
-            type="button"
-            onClick={() => navigate('/')}
-            aria-current={path === '/' ? 'page' : undefined}
+        <Menu
+          mode="inline"
+          selectedKeys={[location.pathname]}
+          items={menuItems}
+          onClick={({ key }) => navigate(key)}
+        />
+      </Sider>
+      <Layout>
+        <Header className="console-header">
+          <Button
+            type="text"
+            aria-label={collapsed ? '展开导航' : '收起导航'}
+            icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+            onClick={() => setCollapsed((value) => !value)}
+          />
+          <Breadcrumb
+            items={[
+              { title: 'OpsPilot' },
+              { title: breadcrumbNames[location.pathname] ?? '页面不存在' },
+            ]}
+          />
+          <Dropdown
+            trigger={['click']}
+            menu={{
+              items: [
+                { key: 'identity', label: user.roles.join(' · '), disabled: true },
+                { type: 'divider' },
+                { key: 'logout', label: '退出登录', onClick: () => void logout() },
+              ],
+            }}
           >
-            系统概览
-          </button>
-          {isAdmin && (
-            <button
-              type="button"
-              onClick={() => navigate('/users')}
-              aria-current={path === '/users' ? 'page' : undefined}
-            >
-              用户管理
-            </button>
-          )}
-        </nav>
-        <div className="user-summary">
-          <strong>{session.user.displayName}</strong>
-          <span>{session.user.roles.join(' · ')}</span>
-          <button type="button" onClick={() => void logout()}>
-            退出登录
-          </button>
-        </div>
-      </aside>
-      <main className="workspace">{content}</main>
-    </div>
+            <Button type="text" className="user-menu">
+              <Avatar size="small" icon={<UserOutlined />} />
+              <span>{user.displayName}</span>
+            </Button>
+          </Dropdown>
+        </Header>
+        <Content className="console-content">
+          <Outlet />
+        </Content>
+      </Layout>
+    </Layout>
   );
 }
 
 function Dashboard({ user }: { user: CurrentUser }) {
   return (
     <section>
-      <p className="section-kicker">IDENTITY FOUNDATION</p>
-      <h1 className="page-title">欢迎，{user.displayName}</h1>
-      <p className="lead">
-        身份验证和角色权限已生效。后续事故、审批与 Agent 功能将在此工作区逐步接入。
-      </p>
-      <div className="role-grid">
-        {roles.map((role) => (
-          <article
-            className={user.roles.includes(role) ? 'role-card active' : 'role-card'}
-            key={role}
-          >
-            <span>{role}</span>
-            <strong>{user.roles.includes(role) ? '已授予' : '未授予'}</strong>
-          </article>
-        ))}
+      <Text className="section-kicker">IDENTITY FOUNDATION</Text>
+      <Title>欢迎，{user.displayName}</Title>
+      <Paragraph type="secondary" className="page-lead">
+        统一导航、会话恢复、请求追踪与异常处理已经就绪，后续业务模块可以复用同一体验基线。
+      </Paragraph>
+      <div className="stat-grid">
+        <Card>
+          <Statistic
+            title="当前角色"
+            value={user.roles.length}
+            prefix={<SafetyCertificateOutlined />}
+          />
+        </Card>
+        <Card>
+          <Statistic title="会话状态" value="已认证" />
+        </Card>
+        <Card>
+          <Statistic title="Request ID" value="全链路启用" />
+        </Card>
       </div>
+      <Card title="权限摘要" className="surface-card">
+        <Space wrap>
+          {roles.map((role) => (
+            <StatusTag key={role} status={user.roles.includes(role) ? role : `${role} · 未授予`} />
+          ))}
+        </Space>
+      </Card>
     </section>
   );
 }
 
-function UserManagementPage({ session, onExpired }: { session: Session; onExpired: () => void }) {
-  const [users, setUsers] = useState<ManagedUser[] | null>(null);
-  const [query, setQuery] = useState('');
-  const [notice, setNotice] = useState<Notice | null>(null);
-  const [showCreate, setShowCreate] = useState(false);
-
-  const load = useCallback(
-    async (clearNotice = true) => {
-      setUsers(null);
-      if (clearNotice) {
-        setNotice(null);
-      }
-      try {
-        const page = await identityApi.users(session.token, 0, query);
-        setUsers(page.content);
-      } catch (error) {
-        if (error instanceof ApiError && error.status === 401) {
-          onExpired();
-          return;
-        }
-        setNotice(errorNotice(error));
-        setUsers([]);
-      }
-    },
-    [onExpired, query, session.token],
+function FoundationPage({ user }: { user: CurrentUser }) {
+  const [dangerOpen, setDangerOpen] = useState(false);
+  return (
+    <section>
+      <Text className="section-kicker">FRONTEND FOUNDATION</Text>
+      <Title>统一体验组件</Title>
+      <Paragraph type="secondary" className="page-lead">
+        这些组件提供一致的状态、风险、证据内容和危险操作交互，供后续事故与 Agent 页面直接复用。
+      </Paragraph>
+      <Card title="语义状态" className="surface-card">
+        <Space wrap size="large">
+          <StatusTag status="HEALTHY" />
+          <StatusTag status="PENDING" />
+          <StatusTag status="FAILED" />
+          <RiskTag risk="LOW" />
+          <RiskTag risk="MEDIUM" />
+          <RiskTag risk="HIGH" />
+          <Confidence value={0.87} />
+        </Space>
+      </Card>
+      <Card title="结构化内容查看器" className="surface-card">
+        <ContentViewer
+          json={{ user: user.username, roles: user.roles, requestId: '由每次请求动态生成' }}
+          logs={'2026-09-19T03:00:00Z INFO request completed\n敏感正文默认不展示'}
+          trace={'api.request → security.filter → identity.service'}
+        />
+      </Card>
+      <Button danger onClick={() => setDangerOpen(true)}>
+        查看危险操作确认
+      </Button>
+      <DangerousActionDialog
+        open={dangerOpen}
+        title="确认演示危险操作"
+        impact="本对话框只演示二次确认规范，不会调用后端或改变数据。"
+        onConfirm={() => setDangerOpen(false)}
+        onCancel={() => setDangerOpen(false)}
+      />
+    </section>
   );
+}
 
-  useEffect(() => {
-    let active = true;
-    identityApi
-      .users(session.token, 0, query)
-      .then((page) => {
-        if (active) {
-          setUsers(page.content);
-        }
-      })
-      .catch((error: unknown) => {
-        if (!active) {
-          return;
-        }
-        if (error instanceof ApiError && error.status === 401) {
-          onExpired();
-          return;
-        }
-        setNotice(errorNotice(error));
-        setUsers([]);
-      });
-    return () => {
-      active = false;
-    };
-  }, [onExpired, query, session.token]);
+type EditState =
+  | { kind: 'create' }
+  | { kind: 'roles'; user: ManagedUser }
+  | { kind: 'password'; user: ManagedUser }
+  | null;
 
-  async function mutate(action: () => Promise<ManagedUser>, message: string) {
-    setNotice(null);
-    try {
-      await action();
-      await load(false);
-      setNotice({ kind: 'success', message });
-    } catch (error) {
-      if (error instanceof ApiError && error.status === 401) {
-        onExpired();
-        return;
-      }
-      setNotice(errorNotice(error));
-    }
+function UserManagementPage({ currentUser }: { currentUser: CurrentUser }) {
+  const { message } = AntApp.useApp();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [queryDraft, setQueryDraft] = useState(searchParams.get('query') ?? '');
+  const [editState, setEditState] = useState<EditState>(null);
+  const [disableTarget, setDisableTarget] = useState<ManagedUser | null>(null);
+  const page = Math.max(0, Number(searchParams.get('page') ?? '0') || 0);
+  const size = [10, 20, 50].includes(Number(searchParams.get('size')))
+    ? Number(searchParams.get('size'))
+    : 10;
+  const query = searchParams.get('query') ?? '';
+  const sort = searchParams.get('sort') ?? 'username,asc';
+
+  const users = useQuery({
+    queryKey: ['users', page, size, query, sort],
+    queryFn: () => identityApi.users({ page, size, query, sort }),
+    placeholderData: keepPreviousData,
+  });
+  const mutate = useMutation({
+    mutationFn: (input: { action: () => Promise<ManagedUser>; success: string }) => input.action(),
+    onSuccess: async (_, input) => {
+      await queryClient.invalidateQueries({ queryKey: ['users'] });
+      setEditState(null);
+      setDisableTarget(null);
+      void message.success(input.success);
+    },
+    onError: (error) => void message.error(error instanceof Error ? error.message : '操作失败'),
+  });
+
+  function updateSearch(next: Record<string, string>) {
+    const value = new URLSearchParams(searchParams);
+    Object.entries(next).forEach(([key, item]) => value.set(key, item));
+    setSearchParams(value, { replace: true });
   }
+
+  const columns: ColumnsType<ManagedUser> = useMemo(
+    () => [
+      {
+        title: '用户',
+        key: 'user',
+        render: (_, user) => (
+          <Space orientation="vertical" size={0}>
+            <Text strong>{user.displayName}</Text>
+            <Text type="secondary">@{user.username}</Text>
+          </Space>
+        ),
+      },
+      {
+        title: '状态',
+        dataIndex: 'enabled',
+        render: (enabled: boolean) => <StatusTag status={enabled ? 'ENABLED' : 'DISABLED'} />,
+      },
+      {
+        title: '角色',
+        dataIndex: 'roles',
+        render: (items: RoleName[]) => (
+          <Space wrap>
+            {items.map((role) => (
+              <StatusTag key={role} status={role} />
+            ))}
+          </Space>
+        ),
+      },
+      {
+        title: '首次改密',
+        dataIndex: 'mustChangePassword',
+        render: (required: boolean) => (required ? '待完成' : '已完成'),
+      },
+      {
+        title: '操作',
+        key: 'actions',
+        fixed: 'right',
+        render: (_, user) => (
+          <Space wrap>
+            <Button size="small" onClick={() => setEditState({ kind: 'roles', user })}>
+              编辑角色
+            </Button>
+            <Button size="small" onClick={() => setEditState({ kind: 'password', user })}>
+              重置密码
+            </Button>
+            {user.enabled ? (
+              <Button
+                size="small"
+                danger
+                disabled={user.id === currentUser.id}
+                onClick={() => setDisableTarget(user)}
+              >
+                禁用
+              </Button>
+            ) : (
+              <Button
+                size="small"
+                onClick={() =>
+                  mutate.mutate({
+                    action: () => identityApi.changeStatus(user.id, true),
+                    success: '用户已启用。',
+                  })
+                }
+              >
+                启用
+              </Button>
+            )}
+          </Space>
+        ),
+      },
+    ],
+    [currentUser.id, mutate],
+  );
 
   return (
     <section>
-      <header className="page-header">
+      <div className="page-heading">
         <div>
-          <p className="section-kicker">ADMINISTRATION</p>
-          <h1 className="page-title">用户与角色</h1>
+          <Text className="section-kicker">ADMINISTRATION</Text>
+          <Title>用户与角色</Title>
         </div>
-        <button className="primary" type="button" onClick={() => setShowCreate((value) => !value)}>
-          {showCreate ? '取消新增' : '新增用户'}
-        </button>
-      </header>
-      {notice && <NoticeBox notice={notice} />}
-      {showCreate && (
-        <CreateUserForm
-          token={session.token}
-          onCreated={async () => {
-            setShowCreate(false);
-            await load(false);
-            setNotice({ kind: 'success', message: '用户已创建，并要求首次登录修改密码。' });
+        <Button type="primary" onClick={() => setEditState({ kind: 'create' })}>
+          新增用户
+        </Button>
+      </div>
+      <Card className="surface-card">
+        <form
+          className="filter-row"
+          onSubmit={(event: FormEvent) => {
+            event.preventDefault();
+            updateSearch({ query: queryDraft, page: '0' });
           }}
-          onError={setNotice}
+        >
+          <label htmlFor="user-query">搜索用户</label>
+          <Input
+            id="user-query"
+            value={queryDraft}
+            allowClear
+            placeholder="用户名或显示名称"
+            onChange={(event) => setQueryDraft(event.target.value)}
+          />
+          <label htmlFor="user-sort">排序方式</label>
+          <Select
+            id="user-sort"
+            aria-label="排序方式"
+            value={sort}
+            options={[
+              { value: 'username,asc', label: '用户名升序' },
+              { value: 'username,desc', label: '用户名降序' },
+              { value: 'createdAt,desc', label: '创建时间降序' },
+            ]}
+            onChange={(value) => updateSearch({ sort: value, page: '0' })}
+          />
+          <Button htmlType="submit">查询</Button>
+        </form>
+      </Card>
+      {users.error && <RequestError error={users.error} onRetry={() => void users.refetch()} />}
+      {!users.error && (
+        <ServerTable
+          columns={columns}
+          data={users.data?.content ?? []}
+          loading={users.isLoading || users.isFetching}
+          page={page}
+          pageSize={size}
+          total={users.data?.totalElements ?? 0}
+          emptyTitle="没有符合条件的用户"
+          onPageChange={(nextPage, nextSize) =>
+            updateSearch({ page: String(nextPage), size: String(nextSize) })
+          }
         />
       )}
-      <form
-        className="search-row"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void load();
+      <UserEditDialog
+        state={editState}
+        loading={mutate.isPending}
+        onCancel={() => setEditState(null)}
+        onSubmit={(values) => {
+          if (editState?.kind === 'create') {
+            mutate.mutate({
+              action: () => identityApi.createUser(values as CreateUserValues),
+              success: '用户已创建，并要求首次登录修改密码。',
+            });
+          } else if (editState?.kind === 'roles') {
+            mutate.mutate({
+              action: () => identityApi.replaceRoles(editState.user.id, values.roles),
+              success: '角色已更新。',
+            });
+          } else if (editState?.kind === 'password') {
+            mutate.mutate({
+              action: () =>
+                identityApi.resetPassword(editState.user.id, values.temporaryPassword ?? ''),
+              success: '临时密码已重置，用户下次登录必须修改密码。',
+            });
+          }
         }}
-      >
-        <label htmlFor="user-query">搜索用户</label>
-        <input
-          id="user-query"
-          placeholder="用户名或显示名称"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-        />
-        <button type="submit">查询</button>
-      </form>
-      {users === null && <div className="panel muted">正在加载用户…</div>}
-      {users?.length === 0 && <div className="panel muted">没有符合条件的用户。</div>}
-      {users && users.length > 0 && (
-        <div className="user-list">
-          {users.map((user) => (
-            <UserCard
-              key={user.id}
-              user={user}
-              currentUserId={session.user.id}
-              onStatus={(enabled) =>
-                mutate(
-                  () => identityApi.changeStatus(session.token, user.id, enabled),
-                  enabled ? '用户已启用。' : '用户已禁用，既有令牌立即失效。',
-                )
-              }
-              onReset={(password) =>
-                mutate(
-                  () => identityApi.resetPassword(session.token, user.id, password),
-                  '临时密码已重置，用户下次登录必须修改密码。',
-                )
-              }
-              onRoles={(nextRoles) =>
-                mutate(
-                  () => identityApi.replaceRoles(session.token, user.id, nextRoles),
-                  '角色已更新。',
-                )
-              }
-            />
-          ))}
-        </div>
-      )}
+      />
+      <DangerousActionDialog
+        open={disableTarget !== null}
+        title="确认禁用用户"
+        impact={`禁用后 ${disableTarget?.displayName ?? '该用户'} 的现有会话会立即失效。`}
+        confirmText="确认禁用"
+        loading={mutate.isPending}
+        onCancel={() => setDisableTarget(null)}
+        onConfirm={() => {
+          if (disableTarget) {
+            mutate.mutate({
+              action: () => identityApi.changeStatus(disableTarget.id, false),
+              success: '用户已禁用，既有令牌立即失效。',
+            });
+          }
+        }}
+      />
     </section>
   );
 }
 
-function CreateUserForm({
-  token,
-  onCreated,
-  onError,
-}: {
-  token: string;
-  onCreated: () => Promise<void>;
-  onError: (notice: Notice) => void;
-}) {
-  const [username, setUsername] = useState('');
-  const [displayName, setDisplayName] = useState('');
-  const [temporaryPassword, setTemporaryPassword] = useState('');
-  const [selectedRoles, setSelectedRoles] = useState<RoleName[]>(['VIEWER']);
+type CreateUserValues = {
+  username: string;
+  displayName: string;
+  temporaryPassword: string;
+  roles: RoleName[];
+};
 
-  async function submit(event: FormEvent) {
-    event.preventDefault();
-    try {
-      await identityApi.createUser(token, {
-        username,
-        displayName,
-        temporaryPassword,
-        roles: selectedRoles,
-      });
-      await onCreated();
-    } catch (error) {
-      onError(errorNotice(error));
+function UserEditDialog({
+  state,
+  loading,
+  onCancel,
+  onSubmit,
+}: {
+  state: EditState;
+  loading: boolean;
+  onCancel: () => void;
+  onSubmit: (values: CreateUserValues) => void;
+}) {
+  const [form] = Form.useForm<CreateUserValues>();
+  useEffect(() => {
+    if (!state) return;
+    form.resetFields();
+    if (state.kind === 'roles') {
+      form.setFieldsValue({ roles: state.user.roles });
+    } else if (state.kind === 'create') {
+      form.setFieldsValue({ roles: ['VIEWER'] });
     }
+  }, [form, state]);
+  const title =
+    state?.kind === 'create' ? '新增用户' : state?.kind === 'roles' ? '编辑角色' : '重置密码';
+  return (
+    <Modal
+      open={state !== null}
+      title={title}
+      okText={
+        state?.kind === 'create' ? '创建用户' : state?.kind === 'roles' ? '保存角色' : '重置密码'
+      }
+      confirmLoading={loading}
+      onCancel={onCancel}
+      onOk={() => void form.validateFields().then(onSubmit)}
+      destroyOnHidden
+    >
+      <Form form={form} layout="vertical" requiredMark={false}>
+        {state?.kind === 'create' && (
+          <>
+            <Form.Item label="用户名" name="username" rules={[{ required: true }]}>
+              <Input maxLength={64} />
+            </Form.Item>
+            <Form.Item label="显示名称" name="displayName" rules={[{ required: true }]}>
+              <Input maxLength={100} />
+            </Form.Item>
+          </>
+        )}
+        {(state?.kind === 'create' || state?.kind === 'password') && (
+          <Form.Item
+            label="临时密码"
+            name="temporaryPassword"
+            rules={[{ required: true }, { min: 12, message: '至少输入 12 个字符' }]}
+          >
+            <Input.Password autoComplete="new-password" />
+          </Form.Item>
+        )}
+        {(state?.kind === 'create' || state?.kind === 'roles') && (
+          <Form.Item
+            label="角色"
+            name="roles"
+            rules={[{ required: true, message: '至少选择一个角色' }]}
+          >
+            <Checkbox.Group options={roles} />
+          </Form.Item>
+        )}
+      </Form>
+    </Modal>
+  );
+}
+
+function ForbiddenPage() {
+  const navigate = useNavigate();
+  return (
+    <RouteStatus
+      code="403"
+      title="无权访问"
+      detail="当前角色没有访问此页面的权限。"
+      onHome={() => navigate('/')}
+    />
+  );
+}
+
+function NotFoundPage() {
+  const navigate = useNavigate();
+  return (
+    <RouteStatus
+      code="404"
+      title="页面不存在"
+      detail="链接可能已失效，请从导航重新进入。"
+      onHome={() => navigate('/')}
+    />
+  );
+}
+
+function ServerErrorPage() {
+  const navigate = useNavigate();
+  return (
+    <RouteStatus
+      code="500"
+      title="页面加载失败"
+      detail="请稍后重试；若问题持续，请携带 Request ID 联系管理员。"
+      onHome={() => navigate('/')}
+    />
+  );
+}
+
+export class GlobalErrorBoundary extends Component<{ children: ReactNode }, { error?: Error }> {
+  state: { error?: Error } = {};
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
   }
 
-  return (
-    <form className="panel create-form" onSubmit={submit}>
-      <label htmlFor="new-username">用户名</label>
-      <input
-        id="new-username"
-        required
-        value={username}
-        onChange={(event) => setUsername(event.target.value)}
-      />
-      <label htmlFor="display-name">显示名称</label>
-      <input
-        id="display-name"
-        required
-        value={displayName}
-        onChange={(event) => setDisplayName(event.target.value)}
-      />
-      <label htmlFor="temporary-password">临时密码</label>
-      <input
-        id="temporary-password"
-        type="password"
-        required
-        minLength={12}
-        value={temporaryPassword}
-        onChange={(event) => setTemporaryPassword(event.target.value)}
-      />
-      <RolePicker value={selectedRoles} onChange={setSelectedRoles} prefix="create" />
-      <button className="primary" type="submit">
-        创建用户
-      </button>
-    </form>
-  );
-}
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error('Unhandled route error', error, info.componentStack);
+  }
 
-function UserCard({
-  user,
-  currentUserId,
-  onStatus,
-  onReset,
-  onRoles,
-}: {
-  user: ManagedUser;
-  currentUserId: string;
-  onStatus: (enabled: boolean) => Promise<void>;
-  onReset: (password: string) => Promise<void>;
-  onRoles: (roles: RoleName[]) => Promise<void>;
-}) {
-  const [selectedRoles, setSelectedRoles] = useState<RoleName[]>(user.roles);
-  const [temporaryPassword, setTemporaryPassword] = useState('');
-  const [confirmDisable, setConfirmDisable] = useState(false);
-  const roleChanged = useMemo(
-    () => selectedRoles.slice().sort().join() !== user.roles.slice().sort().join(),
-    [selectedRoles, user.roles],
-  );
-
-  return (
-    <article className="user-card">
-      <header>
-        <div>
-          <h2>{user.displayName}</h2>
-          <p>
-            @{user.username} · {user.enabled ? '已启用' : '已禁用'}
-          </p>
-        </div>
-        {user.mustChangePassword && <span className="pill warning">待修改密码</span>}
-      </header>
-      <RolePicker value={selectedRoles} onChange={setSelectedRoles} prefix={user.id} />
-      <div className="actions">
-        <button
-          type="button"
-          disabled={!roleChanged || selectedRoles.length === 0}
-          onClick={() => void onRoles(selectedRoles)}
-        >
-          保存角色
-        </button>
-        {user.enabled ? (
-          <button
-            className="danger"
-            type="button"
-            disabled={user.id === currentUserId}
-            onClick={() => setConfirmDisable(true)}
-          >
-            禁用
-          </button>
-        ) : (
-          <button type="button" onClick={() => void onStatus(true)}>
-            启用
-          </button>
-        )}
-      </div>
-      {confirmDisable && (
-        <div className="confirm-box" role="alertdialog" aria-label="确认禁用用户">
-          <p>禁用后该用户的现有会话会立即失效。确认继续？</p>
-          <button className="danger" type="button" onClick={() => void onStatus(false)}>
-            确认禁用
-          </button>
-          <button type="button" onClick={() => setConfirmDisable(false)}>
-            取消
-          </button>
-        </div>
-      )}
-      <div className="reset-row">
-        <label htmlFor={`reset-${user.id}`}>重置临时密码</label>
-        <input
-          id={`reset-${user.id}`}
-          type="password"
-          minLength={12}
-          value={temporaryPassword}
-          onChange={(event) => setTemporaryPassword(event.target.value)}
+  render() {
+    if (this.state.error) {
+      return (
+        <RouteStatus
+          code="500"
+          title="应用发生异常"
+          detail={this.state.error.message}
+          onHome={() => {
+            this.setState({ error: undefined });
+            window.history.replaceState({}, '', '/');
+            window.dispatchEvent(new PopStateEvent('popstate'));
+          }}
         />
-        <button
-          type="button"
-          disabled={temporaryPassword.length < 12}
-          onClick={() => void onReset(temporaryPassword)}
-        >
-          重置密码
-        </button>
-      </div>
-    </article>
-  );
-}
-
-function RolePicker({
-  value,
-  onChange,
-  prefix,
-}: {
-  value: RoleName[];
-  onChange: (roles: RoleName[]) => void;
-  prefix: string;
-}) {
-  return (
-    <fieldset className="roles">
-      <legend>角色</legend>
-      {roles.map((role) => (
-        <label key={role} htmlFor={`${prefix}-${role}`}>
-          <input
-            id={`${prefix}-${role}`}
-            type="checkbox"
-            checked={value.includes(role)}
-            onChange={(event) =>
-              onChange(
-                event.target.checked
-                  ? [...value, role]
-                  : value.filter((candidate) => candidate !== role),
-              )
-            }
-          />
-          {role}
-        </label>
-      ))}
-    </fieldset>
-  );
-}
-
-function NoticeBox({ notice }: { notice: Notice }) {
-  return (
-    <div className={`notice ${notice.kind}`} role={notice.kind === 'error' ? 'alert' : 'status'}>
-      <span>{notice.message}</span>
-      {notice.requestId && <small>Request ID: {notice.requestId}</small>}
-    </div>
-  );
-}
-
-function FullPageStatus({ title, detail }: { title: string; detail: string }) {
-  return (
-    <section className="status-page">
-      <p className="section-kicker">OPS PILOT</p>
-      <h1 className="page-title">{title}</h1>
-      <p className="lead">{detail}</p>
-      <button type="button" onClick={() => navigate('/')}>
-        返回首页
-      </button>
-    </section>
-  );
+      );
+    }
+    return this.props.children;
+  }
 }
