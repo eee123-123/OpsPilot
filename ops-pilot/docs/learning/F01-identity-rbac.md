@@ -184,7 +184,7 @@ Java `Instant` 在 JDBC 边界转换成 UTC `OffsetDateTime`，避免 PostgreSQL
 - 使用 JDBC 而不是 ORM：SQL、分页和锁定行为显式，迁移契约清楚；代价是映射代码更多。
 - BCrypt cost 12：适合当前本地与演示负载；生产应基于目标硬件重新测量登录延迟。
 - 不实现 refresh token：F01 的 15 分钟访问令牌和重新登录足够；引入 refresh token 会增加存储、轮换、盗用检测与撤销复杂度。
-- 前端使用轻量路径状态而非路由库：满足 F01 登录和 `/users`；复杂嵌套路由留给 F02 统一前端框架。
+- F01 最初使用轻量路径状态满足登录和 `/users`；F02 已将其升级为 React Router、Ant Design 与 TanStack Query 驱动的统一前端框架。
 
 ## 10. Agent、MCP、Skill、RAG 与模型关系
 

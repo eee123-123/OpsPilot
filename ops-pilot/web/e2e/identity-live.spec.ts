@@ -20,7 +20,7 @@ test('real API supports first-login change and enforces viewer permissions', asy
   await page.getByRole('button', { name: '修改密码并继续' }).click();
 
   await expect(page.getByText('欢迎，Local Administrator')).toBeVisible();
-  await page.getByRole('button', { name: '用户管理' }).click();
+  await page.getByRole('menuitem', { name: '用户管理' }).click();
   await page.getByRole('button', { name: '新增用户' }).click();
   await page.getByLabel('用户名').fill('viewer-e2e');
   await page.getByLabel('显示名称').fill('E2E Viewer');
@@ -28,7 +28,8 @@ test('real API supports first-login change and enforces viewer permissions', asy
   await page.getByRole('button', { name: '创建用户' }).click();
   await expect(page.getByText('用户已创建，并要求首次登录修改密码。')).toBeVisible();
 
-  await page.getByRole('button', { name: '退出登录' }).click();
+  await page.getByRole('button', { name: /Local Administrator/ }).click();
+  await page.getByRole('menuitem', { name: '退出登录' }).click();
   await page.getByLabel('用户名').fill('viewer-e2e');
   await page.getByLabel('密码').fill(viewerTemporaryPassword);
   await page.getByRole('button', { name: '登录' }).click();
@@ -38,7 +39,7 @@ test('real API supports first-login change and enforces viewer permissions', asy
   await page.getByRole('button', { name: '修改密码并继续' }).click();
 
   await expect(page.getByText('欢迎，E2E Viewer')).toBeVisible();
-  await expect(page.getByRole('button', { name: '用户管理' })).toHaveCount(0);
+  await expect(page.getByRole('menuitem', { name: '用户管理' })).toHaveCount(0);
   await page.goto('/users');
   await expect(page.getByRole('heading', { name: '无权访问' })).toBeVisible();
 

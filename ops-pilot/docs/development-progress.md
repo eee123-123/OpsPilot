@@ -2,22 +2,80 @@
 
 > 本文档记录开发事实和下一步，是跨 Agent、跨会话继续工作的入口。  
 > 功能范围与完成标准以 `system-design.md` 和 `implementation-plan.md` 为准。  
-> 最后更新：2026-09-18
+> 最后更新：2026-09-19
 
 ## 1. 当前工作状态
 
 | 项目 | 当前值 |
 |---|---|
-| 当前功能 | F01 登录、用户与 RBAC（已完成，待下一会话切到 F02） |
-| 实施状态 | 已完成 |
-| 测试状态 | 通过 |
-| 当前分支 | `main` |
-| 合并状态 | F00、F01 均已合并到 `main`；F01 合并提交 `4a532c6` 已推送 |
-| 学习文档 | `docs/learning/F01-identity-rbac.md`，已完成 |
+| 当前功能 | F02 前端框架与统一体验 |
+| 实施状态 | 待合并 |
+| 测试状态 | 通过（前端、浏览器、全仓 Maven 与 Compose 运行态） |
+| 当前分支 | `feature/f02-frontend-foundation` |
+| 合并状态 | F00、F01 已合并到 `main`；F02 从本地最新 `main`（`fe97a0c`）创建，未提交、未合并 |
+| 学习文档 | `docs/learning/F02-frontend-foundation.md`，已完成 |
 | 当前阻塞 | 无 |
-| 下一步 | 下一会话先启动全部环境验证 F01 功能完备性，再开始 F02 前端框架与统一体验 |
+| 运行环境 | 已按用户要求关闭；Compose 数据卷保留，Docker Desktop 已退出 |
+| 下一步 | 人工 Code Review；确认后提交、推送并合并到 `main`，再做合并后验证 |
 
 ## 2. 最近一次会话交接
+
+### 2026-09-19：F02 实现与验收完成，等待合并
+
+已完成：
+
+- 将前端升级为 React Router、Ant Design 与 TanStack Query 驱动的应用框架，完成主布局、导航、面包屑、用户菜单和会话恢复；
+- 建立统一请求层，自动附加 JWT 与 `X-Request-ID`，并统一处理 Problem Details、401 会话失效和请求错误；
+- 完成服务端分页用户表格、筛选排序 URL 同步、加载/空/错误状态、标签、内容查看器和危险操作确认；
+- 完成 403、404、500 与全局错误边界、键盘焦点和 1366×768 响应式基线；
+- Vitest 25 项全部通过，Statements 94.14%、Branches 85.20%、Functions 89.18%、Lines 95.27%，均达到 80% 阈值。
+- ESLint、Prettier、TypeScript/Vite 构建通过；Playwright 2 项隔离浏览器回归通过，真实 API 用例按默认配置跳过；
+- 使用仓库内 Temurin 21 完成全仓 Maven `verify`，6 个模块均为 SUCCESS；
+- 更新运行中的 Web 容器并验证产物 SHA-256 一致，Web HTTP 200、API readiness `UP`，10 个 Compose 服务均正常；验收后按用户要求执行 `docker compose down` 并退出 Docker Desktop，数据卷保留；
+- 生成并校验 `docs/learning/F02-frontend-foundation.md`。
+
+状态变化：
+
+- 实施状态：`开发中` → `待测试` → `测试中` → `待文档` → `待合并`；
+- 测试状态：`未执行` → `执行中` → `通过`；
+- 学习文档：`未生成` → `已完成`。
+
+下一步：
+
+1. 人工审阅 F02 代码、测试与 As-Built 文档；
+2. 获得明确授权后再执行提交、推送和合并；
+3. 在 `main` 做合并后验证，之后才把 F02 标记为 `已完成`。
+
+### 2026-09-19：F01 本地主栈验证通过，启动 F02 开发
+
+本次目标：
+
+- 在 `main` 启动完整环境并简单验证 F01；
+- 验证通过后从最新可用 `main` 创建 F02 分支，完成 FR-UX-001～FR-UX-006 与 F02.1～F02.4。
+
+已完成：
+
+- 启动 Docker Desktop，并执行 `docker compose up -d --build --wait --wait-timeout 300`；
+- 6 个应用镜像构建成功，10 个 Compose 服务全部运行，9 个声明自定义 healthcheck 的容器均 healthy；
+- 验证 Web 返回 200、API readiness 为 `UP`；默认管理员登录成功并识别为 `ADMIN`，首次改密限制使用户管理接口返回 403，错误密码返回 401；
+- 按用户要求保留全部环境运行，未执行 `docker compose down`；
+- 执行 `git fetch origin --prune`，确认 `origin/main` 为 `9ccb9df`，本地 `main` 在其上包含纯文档提交 `fe97a0c`；F02 分支不存在，已从本地最新 `main` 创建 `feature/f02-frontend-foundation`。
+
+状态变化：
+
+- 当前功能：F01 → F02；
+- 实施状态：`未开始` → `开发中`；
+- 测试状态：`未执行`；
+- 当前分支：`feature/f02-frontend-foundation`；
+- 合并状态：未提交、未推送、未合并；
+- 学习文档：未生成。
+
+下一步：
+
+1. 重构前端应用壳、路由、会话与统一请求层；
+2. 实现通用页面状态、数据表格、内容查看器、标签和危险确认组件；
+3. 补充 Vitest、Playwright、类型、lint、构建与真实 Compose 验收；
+4. 生成 F02 As-Built 学习文档并准备人工 Code Review。
 
 ### 2026-09-18：F01 合并到 main，功能完成
 

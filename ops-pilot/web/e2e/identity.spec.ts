@@ -1,6 +1,10 @@
 import { expect, test } from '@playwright/test';
 
 test('admin can login and open user management', async ({ page }) => {
+  const consoleErrors: string[] = [];
+  page.on('console', (message) => {
+    if (message.type() === 'error') consoleErrors.push(message.text());
+  });
   await page.route('**/api/v1/auth/login', async (route) => {
     await route.fulfill({
       json: {
@@ -29,12 +33,17 @@ test('admin can login and open user management', async ({ page }) => {
   await page.getByRole('button', { name: '登录' }).click();
 
   await expect(page.getByText('欢迎，Local Administrator')).toBeVisible();
-  await page.getByRole('button', { name: '用户管理' }).click();
+  await page.getByRole('menuitem', { name: '用户管理' }).click();
   await expect(page.getByRole('heading', { name: '用户与角色' })).toBeVisible();
-  await expect(page.getByText('没有符合条件的用户。')).toBeVisible();
+  await expect(page.getByText('没有符合条件的用户')).toBeVisible();
+  expect(consoleErrors).toEqual([]);
 });
 
 test('viewer cannot see or deep-link to user management', async ({ page }) => {
+  const consoleErrors: string[] = [];
+  page.on('console', (message) => {
+    if (message.type() === 'error') consoleErrors.push(message.text());
+  });
   const viewer = {
     id: '00000000-0000-0000-0000-000000000002',
     username: 'viewer',
@@ -59,7 +68,8 @@ test('viewer cannot see or deep-link to user management', async ({ page }) => {
   await page.getByLabel('密码').fill('Viewer-local-2026!');
   await page.getByRole('button', { name: '登录' }).click();
 
-  await expect(page.getByRole('button', { name: '用户管理' })).toHaveCount(0);
+  await expect(page.getByRole('menuitem', { name: '用户管理' })).toHaveCount(0);
   await page.goto('/users');
   await expect(page.getByRole('heading', { name: '无权访问' })).toBeVisible();
+  expect(consoleErrors).toEqual([]);
 });
