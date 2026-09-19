@@ -4,6 +4,8 @@
 >
 > 对应分支：`feature/f02-frontend-foundation`
 >
+> 功能提交：`00d60f5`；合并提交：`c1fc8fe`
+>
 > 最后校验：2026-09-19
 >
 > 设计基线：`docs/system-design.md` v1.0，需求 FR-UX-001～FR-UX-006

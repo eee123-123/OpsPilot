@@ -2,22 +2,24 @@
 
 ## 当前状态（2026-09-19）
 
-F02 前端框架与统一体验已完成实现、分支内测试和 As-Built 文档，当前处于 `待合并`；本次会话已获得明确授权，将提交并推送 F02 分支，以 `--no-ff` 合并到 `main`，完成合并后验证和状态回写。
+F02 前端框架与统一体验已完成实现、验收、远程分支推送、`main` 合并和合并后验证，实施状态为 `已完成`。下一阶段按用户要求优先改进项目文档，不启动运行环境，也暂不开始 F03。
 
 | 项目 | 值 |
 |---|---|
-| 已完成 | F00 工程基础、F01 登录与 RBAC |
-| 当前功能 | F02 前端框架与统一体验（待本次合并） |
-| 当前分支 | `feature/f02-frontend-foundation` |
-| 分支基线 | 本地最新 `main`：`fe97a0c` |
+| 已完成 | F00 工程基础、F01 登录与 RBAC、F02 前端框架与统一体验 |
+| 当前工作 | 基于当前实现继续改进文档、导航与跨文档一致性 |
+| 当前分支 | `main` |
+| F02 功能提交 | `00d60f5`，已推送到 `origin/feature/f02-frontend-foundation` |
+| F02 合并提交 | `c1fc8fe`（`--no-ff`），已推送到 `origin/main` |
 | 分支内验收 | Vitest 25 项、ESLint、Prettier、TypeScript/Vite、Playwright、全仓 Maven `verify`、Compose 运行态均通过 |
+| 合并后验证 | ESLint、TypeScript/Vite 构建、Vitest 25 项、Playwright 2 项通过；真实 API 场景按设计跳过 |
 | 学习文档 | `docs/learning/F02-frontend-foundation.md`（已完成） |
 | 当前环境 | 已按用户要求关闭；Compose 数据卷保留 |
 | 阻塞 | 无 |
 
-## 合并完成后的下一会话提示词
+## 下一会话提示词
 
-> 先在 `main` 上确认 F02 合并后环境与核心前端流程正常；验证通过后，从最新 `main` 创建 `feature/f03-incident-management`，开始 F03 告警与事故管理开发。
+> 基于最新 `main` 继续改进 OpsPilot 文档：以实际代码和已完成的 F00～F02 为准，系统检查 README、系统设计、实施计划、开发进度、next、OpenAPI 和学习文档的导航、重复、缺失与不一致；只修改文档，不启动前后端或 Docker 环境，不开始 F03。完成后执行链接、路径、状态词、`git diff --check` 和新增文件检查，并停在人工 Git 审查卡点。
 
 ## 后续关注事项
 
@@ -28,4 +30,4 @@ F02 前端框架与统一体验已完成实现、分支内测试和 As-Built 文
 
 ## 历史提示词
 
-F00、F01 与 F02 的启动提示词及执行证据保留在 Git 历史、`docs/development-progress.md` 和对应学习文档中，不再重复列出。
+F00、F01 与 F02 的启动、实现、测试和合并证据保留在 Git 历史、`docs/development-progress.md` 和对应学习文档中，不再重复列出。

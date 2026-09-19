@@ -8,19 +8,19 @@
 
 | 项目 | 当前值 |
 |---|---|
-| 当前功能 | F02 前端框架与统一体验 |
-| 实施状态 | 待合并 |
-| 测试状态 | 通过（前端、浏览器、全仓 Maven 与 Compose 运行态） |
-| 当前分支 | `feature/f02-frontend-foundation` |
-| 合并状态 | F00、F01 已合并到 `main`；F02 从本地最新 `main`（`fe97a0c`）创建，未提交、未合并 |
+| 当前功能 | F02 前端框架与统一体验（已完成；下一项为文档改进） |
+| 实施状态 | 已完成 |
+| 测试状态 | 通过（分支内全量验收及 `main` 合并后前端构建、Vitest、Playwright） |
+| 当前分支 | `main` |
+| 合并状态 | F02 分支提交 `00d60f5` 已推送；通过 `c1fc8fe` 以 `--no-ff` 合并并推送到 `origin/main` |
 | 学习文档 | `docs/learning/F02-frontend-foundation.md`，已完成 |
 | 当前阻塞 | 无 |
 | 运行环境 | 已按用户要求关闭；Compose 数据卷保留，Docker Desktop 已退出 |
-| 下一步 | 人工 Code Review；确认后提交、推送并合并到 `main`，再做合并后验证 |
+| 下一步 | 在 `main` 基线上继续文档改进与一致性治理；完成后再确认是否启动 F03 |
 
 ## 2. 最近一次会话交接
 
-### 2026-09-19：F02 实现与验收完成，等待合并
+### 2026-09-19：F02 实现、验收与合并完成
 
 已完成：
 
@@ -33,18 +33,22 @@
 - 使用仓库内 Temurin 21 完成全仓 Maven `verify`，6 个模块均为 SUCCESS；
 - 更新运行中的 Web 容器并验证产物 SHA-256 一致，Web HTTP 200、API readiness `UP`，10 个 Compose 服务均正常；验收后按用户要求执行 `docker compose down` 并退出 Docker Desktop，数据卷保留；
 - 生成并校验 `docs/learning/F02-frontend-foundation.md`。
+- 提交 `00d60f5`（`feat(f02): establish frontend foundation`）并推送远程 `feature/f02-frontend-foundation`；
+- 通过 `c1fc8fe` 以 `--no-ff` 合并到 `main`，并将 `9ccb9df..c1fc8fe` 推送到 `origin/main`；
+- 合并后在 `main` 再次执行 ESLint、TypeScript/Vite 构建、Vitest 25 项和 Playwright：全部通过，Playwright 结果为 2 passed、1 个需隔离真实 API 的场景按设计 skipped；
+- 将文档全过程同步与一致性检查矩阵补入 `AGENTS.md`；提交、推送与合并仍保留用户当次明确授权卡点。
 
 状态变化：
 
-- 实施状态：`开发中` → `待测试` → `测试中` → `待文档` → `待合并`；
+- 实施状态：`开发中` → `待测试` → `测试中` → `待文档` → `待合并` → `已完成`；
 - 测试状态：`未执行` → `执行中` → `通过`；
 - 学习文档：`未生成` → `已完成`。
 
 下一步：
 
-1. 人工审阅 F02 代码、测试与 As-Built 文档；
-2. 获得明确授权后再执行提交、推送和合并；
-3. 在 `main` 做合并后验证，之后才把 F02 标记为 `已完成`。
+1. 在 `main` 基线上继续改进项目文档、导航与一致性；
+2. 文档改进不需要重启前后端或 Docker 环境；
+3. 文档阶段完成后，再由用户确认是否启动 F03 告警与事故管理。
 
 ### 2026-09-19：F01 本地主栈验证通过，启动 F02 开发
 

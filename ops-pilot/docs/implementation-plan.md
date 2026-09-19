@@ -212,11 +212,13 @@ F00～F17 每个一级功能都必须在规定测试通过后自动生成一份�
 
 ## F02 前端框架与统一体验
 
-> 实施状态：待合并
+> 实施状态：已完成
 >
-> 测试状态：通过（Vitest、ESLint、TypeScript/Vite、Playwright、Maven、Compose）
+> 测试状态：通过（分支内 Vitest、ESLint、TypeScript/Vite、Playwright、Maven、Compose；`main` 合并后构建、Vitest 与 Playwright）
 >
-> 开发分支：`feature/f02-frontend-foundation`
+> 开发分支：`feature/f02-frontend-foundation`（提交 `00d60f5`，已推送）
+>
+> 合并提交：`c1fc8fe`（`--no-ff`，已推送到 `origin/main`）
 >
 > 学习文档：`docs/learning/F02-frontend-foundation.md`（已完成）
 >
